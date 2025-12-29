@@ -1,0 +1,159 @@
+/* app/globals.css */
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-light: #dbeafe;
+  --primary-dark: #1e40af;
+  --secondary: #64748b;
+  --accent: #f8fafc;
+  --border: #d1d1d1;
+  --muted: #f1f5f9;
+  --card: #ffffff;
+  --card-hover: #f8fafc;
+  --gradient-start: #60a5fa;
+  --gradient-end: #8b5cf6;
+}
+
+@theme {
+  /* Light theme colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-light: var(--primary-light);
+  --color-primary-dark: var(--primary-dark);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
+
+  /* Fonts */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Animations */
+  --animation-fade-in: fadeIn 0.5s ease-in-out;
+  --animation-slide-up: slideUp 0.3s ease-out;
+  --animation-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+  /* Border radius */
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+}
+
+/* Dark theme colors */
+.dark {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --primary: #60a5fa;
+  --primary-hover: #3b82f6;
+  --primary-light: #1e293b;
+  --primary-dark: #1e40af;
+  --secondary: #94a3b8;
+  --accent: #1e293b;
+  --border: #334155;
+  --muted: #94a3b8;         
+  --card: #1e293b;
+  --card-hover: #334155;
+  --gradient-start: #3b82f6;
+  --gradient-end: #8b5cf6;
+}
+
+* {
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--muted);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, var(--primary), var(--primary-dark));
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, var(--primary-hover), var(--primary-dark));
+}
+
+/* Selection */
+::selection {
+  background-color: var(--primary-light);
+  color: var(--primary-dark);
+}
+
+.dark ::selection {
+  background-color: rgba(59, 130, 246, 0.3);
+  color: var(--foreground);
+}
+
+/* Focus styles */
+*:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Smooth animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+button{
+  cursor: pointer;
+}
+
