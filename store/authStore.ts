@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { User } from '@/types';
 
 interface AuthState {
-  user: any | null;
+  user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  setUser: (user: any) => void;
+  setUser: (user: User | null) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -70,7 +71,7 @@ export const useAuthStore = create<AuthState>()(
         set({ user: null });
       },
 
-      setUser: (user: any) => set({ user }),
+      setUser: (user: User | null) => set({ user }),
     }),
     {
       name: 'auth-storage',

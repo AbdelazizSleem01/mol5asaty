@@ -2,11 +2,10 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/database/connect';
 import { Submission } from '@/lib/database/models/Submission';
 import { Quiz } from '@/lib/database/models/Quiz';
-import { verifyToken, extractTokenFromHeader } from '@/lib/jwt';
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ quizId: string }> }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
     const userId = request.headers.get('x-user-id');
@@ -16,9 +15,13 @@ export async function GET(
 
     await connectToDatabase();
 
-    const { quizId } = await params;
+    const { slug } = await params;
 
-    const quiz = await Quiz.findById(quizId);
+    // Try to find by slug first, then fallback to ID for backward compatibility
+    let quiz = await Quiz.findOne({ slug });
+    if (!quiz) {
+      quiz = await Quiz.findById(slug);
+    }
     if (!quiz) {
       return NextResponse.json(
         { success: false, error: 'Quiz not found' },
@@ -33,8 +36,8 @@ export async function GET(
       );
     }
 
-    const totalSubmissions = await Submission.countDocuments({ quizId: quizId });
-    const submissions = await Submission.find({ quizId: quizId })
+    const totalSubmissions = await Submission.countDocuments({ quizId: quiz._id });
+    const submissions = await Submission.find({ quizId: quiz._id })
       .sort({ submittedAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);

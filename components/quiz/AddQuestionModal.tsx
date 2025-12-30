@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Question } from '@/types';
 import { useUIStore } from '@/store/uiStore';
 import { translations } from '@/lib/i18n';
@@ -10,53 +9,51 @@ interface AddQuestionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (question: Omit<Question, 'id'>) => void;
-  editingQuestion?: Question | null;
+  isEditing: boolean;
+  formData: {
+    questionText: string;
+    choices: string[];
+    correctAnswer: number;
+  };
+  setFormData: React.Dispatch<React.SetStateAction<{
+    questionText: string;
+    choices: string[];
+    correctAnswer: number;
+  }>>;
 }
 
-export function AddQuestionModal({ isOpen, onClose, onAdd, editingQuestion }: AddQuestionModalProps) {
-  const [questionText, setQuestionText] = useState('');
-  const [choices, setChoices] = useState(['', '', '', '']);
-  const [correctAnswer, setCorrectAnswer] = useState(0);
-
+export function AddQuestionModal({ isOpen, onClose, onAdd, isEditing, formData, setFormData }: AddQuestionModalProps) {
   const { language } = useUIStore();
   const t = translations[language];
 
-  // Update form when editing question changes
-  useEffect(() => {
-    if (editingQuestion) {
-      setQuestionText(editingQuestion.questionText);
-      setChoices([...editingQuestion.choices]);
-      setCorrectAnswer(editingQuestion.correctAnswer);
-    } else {
-      setQuestionText('');
-      setChoices(['', '', '', '']);
-      setCorrectAnswer(0);
-    }
-  }, [editingQuestion]);
-
   const handleChoiceChange = (index: number, value: string) => {
-    const newChoices = [...choices];
-    newChoices[index] = value;
-    setChoices(newChoices);
+    setFormData(prev => {
+      const newChoices = [...prev.choices];
+      newChoices[index] = value;
+      return { ...prev, choices: newChoices };
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!questionText.trim() || choices.some((c) => !c.trim())) {
+    if (!formData.questionText.trim() || formData.choices.some((c) => !c.trim())) {
       return;
     }
 
     onAdd({
-      questionText,
-      choices,
-      correctAnswer,
+      questionText: formData.questionText,
+      choices: formData.choices,
+      correctAnswer: formData.correctAnswer,
     });
 
-    // Reset form
-    setQuestionText('');
-    setChoices(['', '', '', '']);
-    setCorrectAnswer(0);
+    if (!isEditing) {
+      setFormData({
+        questionText: '',
+        choices: ['', '', '', ''],
+        correctAnswer: 0
+      });
+    }
     onClose();
   };
 
@@ -68,7 +65,7 @@ export function AddQuestionModal({ isOpen, onClose, onAdd, editingQuestion }: Ad
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <h2 className="text-2xl font-bold bg-linear-to-r from-primary to-primary-dark bg-clip-text text-transparent">
-            {editingQuestion ? t.quiz.editQuestion : t.quiz.addQuestion}
+            {isEditing ? t.quiz.editQuestion : t.quiz.addQuestion}
           </h2>
           <button
             type="button"
@@ -88,8 +85,8 @@ export function AddQuestionModal({ isOpen, onClose, onAdd, editingQuestion }: Ad
             </label>
             <textarea
               id="questionText"
-              value={questionText}
-              onChange={(e) => setQuestionText(e.target.value)}
+              value={formData.questionText}
+              onChange={(e) => setFormData(prev => ({ ...prev, questionText: e.target.value }))}
               className="w-full px-5 py-4 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-foreground transition-all resize-none"
               rows={4}
               placeholder={t.quiz.enterQuestion || 'Enter your question here...'}
@@ -103,14 +100,14 @@ export function AddQuestionModal({ isOpen, onClose, onAdd, editingQuestion }: Ad
               {t.quiz.choices}
             </label>
             <div className="space-y-3">
-              {choices.map((choice, index) => (
-                <div key={index} className="flex items-center gap-4">
+              {formData.choices.map((choice, index) => (
+                <div key={`modal-choice-${index}`} className="flex items-center gap-4">
                   <input
                     type="radio"
                     name="correctAnswer"
                     id={`choice-${index}`}
-                    checked={correctAnswer === index}
-                    onChange={() => setCorrectAnswer(index)}
+                    checked={formData.correctAnswer === index}
+                    onChange={() => setFormData(prev => ({ ...prev, correctAnswer: index }))}
                     className="w-5 h-5 text-primary focus:ring-primary border-border cursor-pointer"
                   />
                   <label
@@ -143,10 +140,10 @@ export function AddQuestionModal({ isOpen, onClose, onAdd, editingQuestion }: Ad
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={choices.some((c) => !c.trim()) || !questionText.trim()}
+              disabled={formData.choices.some((c) => !c.trim()) || !formData.questionText.trim()}
               className="px-8 py-3 bg-linear-to-r from-primary to-primary-dark text-white font-semibold rounded-xl hover:from-primary-hover hover:to-primary-dark transition-all shadow-md hover:shadow-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {editingQuestion ? t.common.save : t.common.add}
+              {isEditing ? t.common.save : t.common.add}
             </button>
           </div>
         </div>

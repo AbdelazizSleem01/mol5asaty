@@ -3,7 +3,9 @@
 import { Submission, Quiz } from '@/types';
 import { useUIStore } from '@/store/uiStore';
 import { translations } from '@/lib/i18n';
-import { Eye, Download, BarChart2, Clock, FileSpreadsheet, FileText } from 'lucide-react';
+import { Eye, Download, BarChart2, Clock, FileSpreadsheet, FileText, User, Calendar, Award } from 'lucide-react';
+import { useState } from 'react';
+import type { jsPDF } from 'jspdf';
 
 interface ResultsTableProps {
   submissions: Submission[];
@@ -16,11 +18,11 @@ interface ResultsTableProps {
 export function ResultsTable({ submissions, quiz, onViewDetails, onExport, startIndex = 0 }: ResultsTableProps) {
   const { language } = useUIStore();
   const t = translations[language];
-  const isArabic = language === 'ar';
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState<string | null>(null);
 
   const formatDate = (dateString: string | Date) => {
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat(isArabic ? 'ar-SA' : 'en-US', {
+    return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -50,196 +52,435 @@ export function ResultsTable({ submissions, quiz, onViewDetails, onExport, start
     return 'bg-red-500';
   };
 
+  const getGrade = (score: number): string => {
+    if (score >= 90) return 'Excellent';
+    if (score >= 80) return 'Very Good';
+    if (score >= 70) return 'Good';
+    if (score >= 60) return 'Average';
+    if (score >= 50) return 'Poor';
+    return 'Fail';
+  };
+
   const downloadStudentExcel = async (submission: Submission) => {
     try {
       const ExcelJS = (await import('exceljs')).default;
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = isArabic ? 'نظام الاختبارات' : 'Quiz System';
+      workbook.creator = 'Quiz System';
       workbook.created = new Date();
 
-      const worksheet = workbook.addWorksheet(isArabic ? 'النتيجة' : 'Result');
+      const worksheet = workbook.addWorksheet('Result');
 
-      // Helper to strip HTML tags if present
       const stripHtml = (html: string) => {
         const tmp = document.createElement('DIV');
         tmp.innerHTML = html;
         return tmp.textContent || tmp.innerText || '';
       };
 
-      // Header Info
-      worksheet.mergeCells('A1:D1');
+      worksheet.mergeCells('A1:E1');
       const titleCell = worksheet.getCell('A1');
       titleCell.value = quiz.title;
-      titleCell.font = { size: 16, bold: true, color: { argb: 'FF2E5BFF' } };
-      titleCell.alignment = { horizontal: 'center' };
+      titleCell.font = {
+        size: 18,
+        bold: true,
+        color: { argb: 'FF2E5BFF' },
+        name: 'Calibri'
+      };
+      titleCell.alignment = {
+        horizontal: 'center',
+        vertical: 'middle'
+      };
 
-      worksheet.addRow([isArabic ? 'الطالب:' : 'Student:', submission.studentName]);
-      worksheet.addRow([isArabic ? 'الدرجة:' : 'Score:', `${submission.score}%`]);
-      worksheet.addRow([isArabic ? 'التاريخ:' : 'Date:', formatDate(submission.submittedAt)]);
-      worksheet.addRow([]); // Gap
+      worksheet.addRow([]);
 
-      // Table Headers
-      const headers = isArabic
-        ? ['السؤال', 'إجابة الطالب', 'الإجابة الصحيحة', 'الحالة']
-        : ['Question', 'Student Answer', 'Correct Answer', 'Status'];
+      const infoRow1 = worksheet.addRow([
+        'Student Name:',
+        submission.studentName,
+        '',
+        'Date:',
+        formatDate(submission.submittedAt)
+      ]);
 
+      const infoRow2 = worksheet.addRow([
+        'Score:',
+        `${submission.score}%`,
+        '',
+        'Grade:',
+        getGrade(submission.score)
+      ]);
+
+      [infoRow1, infoRow2].forEach(row => {
+        row.eachCell((cell, colNumber) => {
+          if (colNumber === 1 || colNumber === 4) {
+            cell.font = { bold: true };
+          }
+          if (colNumber === 2 || colNumber === 5) {
+            cell.font = { bold: true, color: { argb: 'FF2E5BFF' } };
+          }
+        });
+      });
+
+      worksheet.addRow([]);
+
+      const headers = ['#', 'Question', 'Student Answer', 'Correct Answer', 'Status'];
       const headerRow = worksheet.addRow(headers);
-      headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2E5BFF' } };
-      headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+      headerRow.font = {
+        bold: true,
+        color: { argb: 'FFFFFFFF' },
+        name: 'Calibri'
+      };
+      headerRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF2E5BFF' }
+      };
+      headerRow.alignment = {
+        horizontal: 'center',
+        vertical: 'middle',
+        wrapText: true
+      };
+      headerRow.height = 25;
 
-      // Data Rows
       quiz.questions.forEach((q, idx) => {
         const answerIdx = submission.answers?.[idx] ?? -1;
-        const studentAnswer = answerIdx >= 0 ? q.choices[answerIdx] : (isArabic ? 'لم يجب' : 'No Answer');
+        const studentAnswer = answerIdx >= 0 ? q.choices[answerIdx] : 'No Answer';
         const correctAnswer = q.choices[q.correctAnswer];
         const isCorrect = answerIdx === q.correctAnswer;
 
         const row = worksheet.addRow([
+          idx + 1,
           stripHtml(q.questionText),
           studentAnswer,
           correctAnswer,
-          isCorrect ? (isArabic ? 'صحيح' : 'Correct') : (isArabic ? 'خطأ' : 'Incorrect')
+          isCorrect ? '✅ Correct' : '❌ Incorrect'
         ]);
 
-        // Color status cell
-        const statusCell = row.getCell(4);
-        statusCell.font = { color: { argb: isCorrect ? 'FF00A859' : 'FFF44336' }, bold: true };
+        const statusCell = row.getCell(5);
+        statusCell.font = {
+          color: { argb: isCorrect ? 'FF00A859' : 'FFF44336' },
+          bold: true
+        };
+        statusCell.alignment = { horizontal: 'center' };
       });
 
-      // Columns Width
-      worksheet.getColumn(1).width = 40;
-      worksheet.getColumn(2).width = 25;
-      worksheet.getColumn(3).width = 25;
-      worksheet.getColumn(4).width = 15;
+      worksheet.getColumn(1).width = 10;
+      worksheet.getColumn(2).width = 50; 
+      worksheet.getColumn(3).width = 40;  
+      worksheet.getColumn(4).width = 40;  
+      worksheet.getColumn(5).width = 20;
 
-      // Borders
       worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber > 5) { // Skip header info
+        if (rowNumber > 5) {
           row.eachCell((cell) => {
             cell.border = {
-              top: { style: 'thin' },
-              left: { style: 'thin' },
-              bottom: { style: 'thin' },
-              right: { style: 'thin' },
+              top: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+              left: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+              bottom: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+              right: { style: 'thin', color: { argb: 'FFDDDDDD' } },
             };
-            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            cell.alignment = {
+              vertical: 'middle',
+              horizontal: 'left',
+              wrapText: true
+            };
           });
         }
       });
 
+      worksheet.addRow([]);
+      
+      const correctAnswers = quiz.questions.filter((q, idx) => {
+        const answerIdx = submission.answers?.[idx] ?? -1;
+        return answerIdx === q.correctAnswer;
+      }).length;
+
+      const summaryRow = worksheet.addRow([
+        'Summary:',
+        '',
+        '',
+        '',
+        `${correctAnswers}/${quiz.questions.length}`
+      ]);
+      
+      summaryRow.getCell(1).font = { bold: true };
+      summaryRow.getCell(5).font = { bold: true, color: { argb: 'FF2E5BFF' } };
+
       const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `result-${submission.studentName}.xlsx`;
+      a.download = `Result_${submission.studentName}_${quiz.title}.xlsx`
+        .replace(/[^a-zA-Z0-9_\-]/g, '_');
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Excel export error:', error);
-      alert(isArabic ? 'فشل التصدير' : 'Export failed');
+      alert('Failed to export file');
     }
   };
 
   const downloadStudentPDF = async (submission: Submission) => {
+    setIsGeneratingPDF(submission.id);
     try {
-      const jsPDF = (await import('jspdf')).default;
+      const { jsPDF } = await import('jspdf');
       const autoTable = (await import('jspdf-autotable')).default;
 
-      const doc = new jsPDF();
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
 
-      // Load Arabic Font (Amiri)
-      try {
-        const fontUrl = 'https://raw.githubusercontent.com/google/fonts/main/ofl/amiri/Amiri-Regular.ttf';
-        const response = await fetch(fontUrl);
-        const blob = await response.blob();
-        const reader = new FileReader();
+      const pageWidth = pdf.internal.pageSize.getWidth();
 
-        await new Promise((resolve) => {
-          reader.onloadend = () => {
-            const base64data = reader.result?.toString().split(',')[1];
-            if (base64data) {
-              doc.addFileToVFS('Amiri-Regular.ttf', base64data);
-              doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
-              doc.setFont('Amiri');
-            }
-            resolve(true);
-          };
-          reader.readAsDataURL(blob);
-        });
-      } catch (e) {
-        console.error('Failed to load Arabic font', e);
+      const stripHtml = (html: string) => {
+        const tmp = document.createElement('DIV');
+        tmp.innerHTML = html;
+        return tmp.textContent || tmp.innerText || '';
+      };
+
+      const truncateText = (text: string, maxLength: number) => {
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength) + '...';
+      };
+
+      pdf.setFontSize(22);
+      pdf.setTextColor(46, 91, 255); 
+      pdf.setFont('helvetica', 'bold');
+      const title = truncateText(quiz.title, 80);
+      pdf.text(title, pageWidth / 2, 20, { align: 'center' });
+
+      if (quiz.description) {
+        pdf.setFontSize(11);
+        pdf.setTextColor(100, 100, 100);
+        pdf.setFont('helvetica', 'normal');
+        const description = truncateText(stripHtml(quiz.description), 120);
+        pdf.text(description, pageWidth / 2, 28, { align: 'center' });
       }
 
-      doc.setFontSize(18);
-      doc.setTextColor(46, 91, 255);
-      doc.setFont('Amiri', 'normal');
+      pdf.setFontSize(14);
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Student Information', 15, 45);
 
-      // Align right for Arabic, Center for English
-      const titleAlign = isArabic ? 'right' : 'center';
-      const titleX = isArabic ? 200 : 105;
-      doc.text(quiz.title, titleX, 20, { align: titleAlign });
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(15, 48, pageWidth - 15, 48);
 
-      doc.setFontSize(12);
-      doc.setTextColor(0);
+      pdf.setFontSize(11);
+      pdf.setTextColor(80, 80, 80);
+      pdf.setFont('helvetica', 'normal');
 
-      const startX = isArabic ? 190 : 14;
-      const align = isArabic ? 'right' : 'left';
+      const studentInfoData = [
+        ['Student Name:', truncateText(submission.studentName, 50)],
+        ['Score:', `${submission.score}%`],
+        ['Grade:', getGrade(submission.score)],
+        ['Time Taken:', formatTimeSpent(submission.timeSpent)],
+        ['Submission Date:', formatDate(submission.submittedAt)]
+      ];
 
-      doc.text(`${isArabic ? 'الطالب' : 'Student'}: ${submission.studentName}`, startX, 30, { align });
-      doc.text(`${isArabic ? 'الدرجة' : 'Score'}: ${submission.score}%`, startX, 38, { align });
-      doc.text(`${isArabic ? 'التاريخ' : 'Date'}: ${formatDate(submission.submittedAt)}`, startX, 46, { align });
+      let yPos = 55;
+      studentInfoData.forEach(([label, value]) => {
+        pdf.text(label, 15, yPos);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(46, 91, 255);
+        pdf.text(value, 70, yPos);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(80, 80, 80);
+        yPos += 8;
+      });
+
+      const scoreX = pageWidth - 50;
+      const scoreY = 55;
+      
+      pdf.setFillColor(240, 240, 245);
+      pdf.roundedRect(scoreX, scoreY, 40, 25, 2, 2, 'F');
+      
+      pdf.setFontSize(20);
+      pdf.setTextColor(46, 91, 255);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`${submission.score}%`, scoreX + 20, scoreY + 15, { align: 'center' });
+      
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('Score', scoreX + 20, scoreY + 22, { align: 'center' });
+
+      const progressWidth = 40;
+      const progressFilled = (submission.score / 100) * progressWidth;
+      
+      pdf.setFillColor(230, 230, 230);
+      pdf.roundedRect(scoreX, scoreY + 28, progressWidth, 5, 2, 2, 'F');
+      
+      let progressColor: [number, number, number];
+      if (submission.score >= 70) {
+        progressColor = [0, 168, 89];
+      } else if (submission.score >= 50) {
+        progressColor = [255, 152, 0]; 
+      } else {
+        progressColor = [244, 67, 54];
+      }
+      
+      pdf.setFillColor(progressColor[0], progressColor[1], progressColor[2]);
+      pdf.roundedRect(scoreX, scoreY + 28, progressFilled, 5, 2, 2, 'F');
+
+      pdf.setFontSize(14);
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Questions & Answers', 15, 95);
+
+      pdf.line(15, 98, pageWidth - 15, 98);
 
       const tableData = quiz.questions.map((q, idx) => {
         const answerIdx = submission.answers?.[idx] ?? -1;
-        const studentAnswer = answerIdx >= 0 ? q.choices[answerIdx] : '--';
+        const studentAnswer = answerIdx >= 0 ?
+          q.choices[answerIdx] :
+          '-- No Answer --';
         const isCorrect = answerIdx === q.correctAnswer;
 
         return [
-          q.questionText,
-          studentAnswer,
-          isCorrect ? (isArabic ? 'صحيح' : 'Correct') : (isArabic ? 'خطأ' : 'Incorrect')
+          (idx + 1).toString(),
+          truncateText(stripHtml(q.questionText), 150),
+          truncateText(studentAnswer, 80),
+          truncateText(q.choices[q.correctAnswer], 80),
+          isCorrect ? '✓' : '✗'
         ];
       });
 
-      autoTable(doc, {
-        startY: 55,
-        head: [[
-          isArabic ? 'السؤال' : 'Question',
-          isArabic ? 'إجابة الطالب' : 'Student Answer',
-          isArabic ? 'الحالة' : 'Status'
-        ]],
+      autoTable(pdf, {
+        startY: 102,
+        head: [['#', 'Question', 'Student Answer', 'Correct Answer', 'Result']],
         body: tableData,
+        theme: 'grid',
+        styles: {
+          fontSize: 9,
+          cellPadding: 2,
+          overflow: 'linebreak',
+          textColor: [60, 60, 60],
+          font: 'helvetica',
+          lineWidth: 0.1,
+        },
         headStyles: {
           fillColor: [46, 91, 255],
-          font: 'Amiri',
-          halign: isArabic ? 'right' : 'left'
-        },
-        styles: {
-          font: 'Amiri',
-          halign: isArabic ? 'right' : 'left',
-          overflow: 'linebreak'
+          textColor: [255, 255, 255],
+          fontSize: 10,
+          fontStyle: 'bold',
+          halign: 'center',
+          lineWidth: 0.1,
         },
         columnStyles: {
-          0: { cellWidth: 80 },
-          1: { cellWidth: 60 },
-          2: { cellWidth: 40 }
+          0: { cellWidth: 15, halign: 'center' },
+          1: { cellWidth: 75 },  
+          2: { cellWidth: 40 },  
+          3: { cellWidth: 40 },  
+          4: { cellWidth: 20, halign: 'center' }
+        },
+        margin: { left: 15, right: 15 },
+        didParseCell: function(data) {
+          if (data.column.index === 4 && data.cell.raw) {
+            const isCorrect = data.cell.raw === '✓';
+            data.cell.styles.textColor = isCorrect ? 
+              [0, 168, 89] : 
+              [244, 67, 54];  
+            data.cell.styles.fontStyle = 'normal';
+            data.cell.styles.fontSize = 10;
+          }
+          if (data.column.index === 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fontSize = 8.5;
+          }
+        },
+        willDrawCell: function(data) {
+          if (data.row.index % 2 === 0 && data.row.index > 0) {
+            data.doc.setFillColor(250, 250, 250);
+            data.doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+          }
         }
       });
 
-      doc.save(`result-${submission.studentName}.pdf`);
+      
+      const finalY = (pdf as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
+      
+      pdf.setFontSize(14);
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Results Summary', 15, finalY);
+
+      pdf.line(15, finalY + 3, pageWidth - 15, finalY + 3);
+
+      pdf.setFontSize(10);
+      pdf.setTextColor(80, 80, 80);
+      pdf.setFont('helvetica', 'normal');
+
+      const correctAnswers = quiz.questions.filter((q, idx) => {
+        const answerIdx = submission.answers?.[idx] ?? -1;
+        return answerIdx === q.correctAnswer;
+      }).length;
+
+      const wrongAnswers = quiz.questions.length - correctAnswers;
+      const successRate = Math.round((correctAnswers / quiz.questions.length) * 100);
+
+      const summaryData = [
+        ['Total Questions:', quiz.questions.length.toString()],
+        ['Correct Answers:', correctAnswers.toString()],
+        ['Wrong Answers:', wrongAnswers.toString()],
+        ['Success Rate:', `${successRate}%`],
+        ['Score:', `${submission.score}%`],
+        ['Grade:', getGrade(submission.score)]
+      ];
+
+      let summaryY = finalY + 12;
+      summaryData.forEach(([label, value]) => {
+        pdf.text(label, 15, summaryY);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(46, 91, 255);
+        pdf.text(value, 70, summaryY);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(80, 80, 80);
+        summaryY += 6;
+      });
+
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150);
+      pdf.setFont('helvetica', 'italic');
+      pdf.text(
+        `Generated by Mokta'b Quiz System • ${new Date().toLocaleDateString('en-US')}`,
+        pageWidth / 2,
+        pdf.internal.pageSize.getHeight() - 10,
+        { align: 'center' }
+      );
+
+      const totalPages = pdf.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(
+          `Page ${i} of ${totalPages}`,
+          pageWidth - 20,
+          pdf.internal.pageSize.getHeight() - 10
+        );
+      }
+
+      const fileName = `Result_${submission.studentName}_${quiz.title}.pdf`
+        .replace(/[^a-zA-Z0-9_\-]/g, '_')
+        .substring(0, 100);
+      
+      pdf.save(fileName);
+
     } catch (error) {
       console.error('PDF export error:', error);
-      alert(isArabic ? 'فشل التصدير' : 'Export failed');
+      alert('Failed to create PDF file');
+    } finally {
+      setIsGeneratingPDF(null);
     }
   };
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[700px]">
+      <table className="w-full min-w-175">
         <thead>
-          <tr className="border-b border-border">
+          <tr className="border-b border-border bg-muted/30">
             <th className="text-center py-4 px-6 text-sm font-semibold text-foreground/80">
               #
             </th>
@@ -249,7 +490,7 @@ export function ResultsTable({ submissions, quiz, onViewDetails, onExport, start
             <th className="text-center py-4 px-6 text-sm font-semibold text-foreground/80">
               {t.results.score}
             </th>
-            <th className="text-center py-4 px-6 text-sm font-semibold text-foreground/80">
+            <th className="text-center whitespace-nowrap py-4 px-6 text-sm font-semibold text-foreground/80">
               {t.quiz.timeTaken || 'Time Taken'}
             </th>
             <th className="text-center py-4 px-6 text-sm font-semibold text-foreground/80">
@@ -264,19 +505,21 @@ export function ResultsTable({ submissions, quiz, onViewDetails, onExport, start
           {submissions.map((submission, index) => (
             <tr
               key={submission.id}
-              className="border-b border-border text-center hover:bg-muted/50 transition-colors"
+              className="border-b border-border text-center hover:bg-muted/30 transition-colors"
             >
-              <td className="py-4 px-6 text-sm text-foreground/80">
+              <td className="py-4 px-6 text-sm text-foreground/80 font-medium">
                 {startIndex + index + 1}
               </td>
               <td className="py-4 px-6">
-                <div className="font-medium text-foreground">
+                <div className="font-medium text-foreground flex items-center justify-center gap-2">
+                  <User className="w-4 h-4 text-primary/60" />
                   {submission.studentName}
                 </div>
               </td>
               <td className="py-4 px-6">
-                <div className="flex items-center gap-4 justify-center">
-                  <div className={`text-xl font-bold ${getScoreColor(submission.score)}`}>
+                <div className="flex flex-col items-center gap-2">
+                  <div className={`text-xl font-bold ${getScoreColor(submission.score)} flex items-center gap-2`}>
+                    <Award className="w-5 h-5" />
                     {submission.score}%
                   </div>
                   <div className="w-24 h-2 bg-muted/50 rounded-full overflow-hidden">
@@ -285,43 +528,58 @@ export function ResultsTable({ submissions, quiz, onViewDetails, onExport, start
                       style={{ width: `${submission.score}%` }}
                     />
                   </div>
+                  <span className="text-xs text-foreground/60">
+                    {getGrade(submission.score)}
+                  </span>
                 </div>
               </td>
               <td className="py-4 px-6">
                 <div className="flex items-center justify-center gap-2 text-foreground/80">
-                  <Clock className="w-4 h-4" />
-                  <span className="font-mono">
+                  <Clock className="w-4 h-4 text-primary/60" />
+                  <span className="font-mono font-medium">
                     {formatTimeSpent(submission.timeSpent)}
                   </span>
                 </div>
               </td>
-              <td className="py-4 px-6 text-sm text-foreground/80">
-                {formatDate(submission.submittedAt)}
+              <td className="py-4 px-6 text-sm">
+                <div className="flex items-center justify-center gap-2 text-foreground/70">
+                  <Calendar className="w-4 h-4 text-primary/60" />
+                  {formatDate(submission.submittedAt)}
+                </div>
               </td>
-              <td className="py-4 px-6 mx-auto">
+              <td className="py-4 px-6">
                 <div className="flex justify-center gap-2">
                   <button
                     onClick={() => onViewDetails(submission)}
-                    className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
+                    className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors tooltip"
                     title={t.results.viewDetails}
                   >
                     <Eye className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => downloadStudentExcel(submission)}
-                    className="p-2 rounded-lg hover:bg-green-500/10 text-green-600 dark:text-green-400 transition-colors"
-                    title={isArabic ? 'تحميل Excel' : 'Download Excel'}
+                    className="p-2 rounded-lg hover:bg-green-500/10 text-green-600 dark:text-green-400 transition-colors tooltip"
+                    title="Download Excel"
                   >
                     <FileSpreadsheet className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => downloadStudentPDF(submission)}
-                    className="p-2 rounded-lg hover:bg-red-500/10 text-red-600 dark:text-red-400 transition-colors"
-                    title={isArabic ? 'تحميل PDF' : 'Download PDF'}
+                    disabled={isGeneratingPDF === submission.id}
+                    className={`p-2 rounded-lg transition-colors tooltip ${isGeneratingPDF === submission.id
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:bg-red-500/10 text-red-600 dark:text-red-400'
+                    }`}
+                    title="Download PDF"
                   >
                     <FileText className="w-5 h-5" />
                   </button>
                 </div>
+                {isGeneratingPDF === submission.id && (
+                  <div className="text-xs text-foreground/60 mt-1">
+                    Generating PDF...
+                  </div>
+                )}
               </td>
             </tr>
           ))}
@@ -343,10 +601,10 @@ export function ResultsTable({ submissions, quiz, onViewDetails, onExport, start
       )}
 
       {onExport && submissions.length > 0 && (
-        <div className="p-6 border-t border-border flex justify-end">
+        <div className="p-6 border-t border-border flex justify-end bg-muted/30">
           <button
             onClick={onExport}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-primary to-gradient-end text-white rounded-xl hover:from-primary-hover hover:to-gradient-end transition-all shadow-md hover:shadow-primary/30"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-primary to-primary-dark text-white rounded-xl hover:from-primary-hover hover:to-primary-dark transition-all shadow-md hover:shadow-primary/30"
           >
             <Download className="w-5 h-5" />
             {t.common.downloadCSV}

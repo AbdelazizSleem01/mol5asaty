@@ -5,7 +5,6 @@ import { Submission } from '@/lib/database/models/Submission';
 
 export async function GET(request: Request) {
   try {
-    // User is authenticated by middleware, get user info from headers
     const userId = request.headers.get('x-user-id');
     const userName = request.headers.get('x-user-name');
     const decodedUserName = userName ? Buffer.from(userName, 'base64').toString('utf-8') : 'Unknown';
@@ -25,6 +24,7 @@ export async function GET(request: Request) {
         
         return {
           id: quiz._id,
+          slug: quiz.slug,
           title: quiz.title,
           displayName: quiz.displayName,
           thumbnail: quiz.thumbnail,

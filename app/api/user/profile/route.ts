@@ -5,7 +5,7 @@ import { connectToDatabase } from '@/lib/database/connect';
 import { User } from '@/lib/database/models/User';
 import { verifyToken } from '@/lib/jwt';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
@@ -45,6 +45,7 @@ export async function GET(request: Request) {
       }
     });
   } catch (error) {
+    console.error(error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
@@ -120,6 +121,7 @@ export async function PUT(request: Request) {
       message: 'Profile updated successfully'
     });
   } catch (error) {
+    console.error(error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

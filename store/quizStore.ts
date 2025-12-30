@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Question, Quiz, Submission } from '@/types';
+import {Quiz, Submission } from '@/types';
 
 interface QuizState {
   currentQuiz: Quiz | null;

@@ -9,7 +9,9 @@ export interface Quiz {
   _id?: string;
   id: string;
   title: string;
+  description?: string;
   displayName?: string;
+  slug?: string;
   thumbnail?: string;
   creatorName?: string;
   questions: Question[];
@@ -20,6 +22,7 @@ export interface Quiz {
   linkToken: string;
   submissionsCount?: number;
   averageScore?: number;
+  hasPassword?: boolean;
 }
 
 export interface Submission {
@@ -33,14 +36,24 @@ export interface Submission {
   submittedAt: Date;
 }
 
+export interface SubmissionWithQuiz extends Submission {
+  quiz: {
+    title: string;
+    questionsCount: number;
+    questions?: Question[];
+    createdAt: Date;
+    timeLimit?: number;
+  };
+}
+
 export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'teacher' | 'student';
+  role: 'admin' | 'teacher' | 'student';
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;

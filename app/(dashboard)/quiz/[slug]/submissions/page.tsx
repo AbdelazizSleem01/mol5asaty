@@ -1,15 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useUIStore } from '@/store/uiStore';
 import { translations } from '@/lib/i18n';
 import { ResultsTable } from '@/components/quiz/ResultsTable';
 import { Download, ArrowLeft, BarChart2, X, Loader2, Check } from 'lucide-react';
-import { Submission } from '@/types';
+import { Submission, Quiz, Question } from '@/types';
 
 export default function QuizSubmissionsPage() {
-  const [quiz, setQuiz] = useState<any>(null);
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [allSubmissions, setAllSubmissions] = useState<Submission[]>([]);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
@@ -25,28 +25,20 @@ export default function QuizSubmissionsPage() {
   const t = translations[language];
   const isArabic = language === 'ar';
 
-  useEffect(() => {
-    fetchQuizData();
-  }, [params.quizId]);
-
-  useEffect(() => {
-    if (quiz) {
-      fetchSubmissions();
-    }
-  }, [currentPage, quiz]);
-
-  const fetchQuizData = async () => {
+  const fetchQuizData = useCallback(async () => {
     try {
-      const quizRes = await fetch(`/api/quiz/${params.quizId}`);
+      const quizRes = await fetch(`/api/quiz/${params.slug}`);
       const quizData = await quizRes.json();
       if (quizData.success) setQuiz(quizData.quiz);
-    } catch (error) { }
-  };
+    } catch (error) { 
+      console.error('Failed to fetch quiz data:', error); 
+    }
+  }, [params.slug]);
 
-  const fetchSubmissions = async () => {
+  const fetchSubmissions = useCallback(async () => {
     try {
       setIsLoading(true);
-      const submissionsRes = await fetch(`/api/quiz/${params.quizId}/submissions?page=${currentPage}&limit=${pageSize}`);
+      const submissionsRes = await fetch(`/api/quiz/${params.slug}/submissions?page=${currentPage}&limit=${pageSize}`);
       const submissionsData = await submissionsRes.json();
 
       if (submissionsData.success) {
@@ -56,17 +48,28 @@ export default function QuizSubmissionsPage() {
       }
 
       if (allSubmissions.length === 0) {
-        const allSubmissionsRes = await fetch(`/api/quiz/${params.quizId}/submissions?page=1&limit=10000`);
+        const allSubmissionsRes = await fetch(`/api/quiz/${params.slug}/submissions?page=1&limit=10000`);
         const allSubmissionsData = await allSubmissionsRes.json();
         if (allSubmissionsData.success) {
           setAllSubmissions(allSubmissionsData.submissions);
         }
       }
     } catch (error) {
+      console.error('Failed to fetch submissions:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [params.slug, currentPage, pageSize, allSubmissions.length]);
+
+  useEffect(() => {
+    fetchQuizData();
+  }, [fetchQuizData]);
+
+  useEffect(() => {
+    if (quiz) {
+      fetchSubmissions();
+    }
+  }, [fetchSubmissions, quiz]);
 
   const downloadExcel = async () => {
     try {
@@ -115,7 +118,7 @@ export default function QuizSubmissionsPage() {
         worksheet.addRow({
           index: index + 1,
           name: sub.studentName || (isArabic ? 'غير محدد' : 'Not specified'),
-          totalScore: quiz.questions.length,
+          totalScore: quiz?.questions?.length || 0,
           score: sub.score,
           time: formatTimeSpent(sub.timeSpent),
           date: new Date(sub.submittedAt).toLocaleString(isArabic ? 'ar-SA' : 'en-US', {
@@ -216,16 +219,11 @@ export default function QuizSubmissionsPage() {
       a.download = `quiz-submissions-${quiz?.title || 'quiz'}-${new Date().toISOString().split('T')[0]}.xlsx`;
       a.click();
       window.URL.revokeObjectURL(url);
-    } catch (error) {
+    } catch {
       alert(isArabic ? 'فشل في إنشاء ملف Excel. يرجى المحاولة مرة أخرى.' : 'Failed to generate Excel file. Please try again.');
     }
   };
 
-  const getAverageScore = () => {
-    if (submissions.length === 0) return 0;
-    const total = submissions.reduce((sum, sub) => sum + sub.score, 0);
-    return Math.round(total / submissions.length);
-  };
 
   const getScoreDistribution = () => {
     const distribution = {
@@ -306,7 +304,7 @@ export default function QuizSubmissionsPage() {
 
           <button
             onClick={() => {
-              const link = `${window.location.origin}/quiz/${quiz.id}`;
+              const link = `${window.location.origin}/quiz/${params.slug}`;
               navigator.clipboard.writeText(link);
             }}
             className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-primary to-primary-dark text-white rounded-xl hover:from-primary-hover hover:to-primary-dark transition-all shadow-md hover:shadow-primary/30"
@@ -460,7 +458,7 @@ export default function QuizSubmissionsPage() {
             </div>
 
             <div className="p-6 space-y-6">
-              {quiz.questions.map((question: any, index: number) => {
+              {quiz.questions.map((question: Question, index: number) => {
                 const studentAnswer = selectedSubmission.answers?.[index] ?? -1;
                 const isCorrect = studentAnswer === question.correctAnswer;
 

@@ -1,14 +1,23 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
-import { useUIStore } from '@/store/uiStore';
-import { translations } from '@/lib/i18n';
-import { Home, LayoutDashboard, LogOut, Menu, X, User, ChevronDown } from 'lucide-react';
-import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
-import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/authStore";
+import { useUIStore } from "@/store/uiStore";
+import { translations } from "@/lib/i18n";
+import {
+  Home,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  X,
+  User,
+  ChevronDown,
+} from "lucide-react";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import Image from "next/image";
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -20,13 +29,13 @@ export function Navbar() {
   const t = translations[language];
 
   const getInitials = (name: string) => {
-    const names = name.split(' ');
-    return (names[0]?.[0] || '') + (names[1]?.[0] || '').toUpperCase();
+    const names = name.split(" ");
+    return (names[0]?.[0] || "") + (names[1]?.[0] || "").toUpperCase();
   };
 
   const handleLogout = () => {
     logout();
-    router.push('/');
+    router.push("/");
     setIsMenuOpen(false);
     setIsUserMenuOpen(false);
   };
@@ -34,37 +43,46 @@ export function Navbar() {
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
 
-  // Close user dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node)
+      ) {
         setIsUserMenuOpen(false);
       }
     };
 
     if (isUserMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isUserMenuOpen]);
 
   return (
-    <nav className="bg-background/90 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-border">
+    <nav className="bg-background/90 py-2 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="shrink-0">
             <Link
               href="/"
-              className="flex items-center gap-3 group"
+              className="flex items-center gap-1 group"
               onClick={closeMenu}
             >
-              <div className="w-10 h-10 bg-linear-to-r from-primary to-primary-dark rounded-xl flex items-center justify-center shadow-md group-hover:shadow-primary/30 transition-all">
-                <span className="text-white font-bold text-xl">Q</span>
-              </div>
-              <span className="text-2xl font-bold bg-linear-to-r from-primary to-primary-dark bg-clip-text text-transparent group-hover:opacity-90 transition-opacity">
-                QuizMaster
+                <Image
+                  src="/Images/Logo1.png"
+                  alt="Mokta'b Logo"
+                  width={80}
+                  height={80}
+                  className="w-20 h-20 "
+                  loading="eager"
+                />
+          
+
+              <span className="text-xl font-bold bg-linear-to-r from-primary to-primary-dark bg-clip-text text-transparent group-hover:opacity-90 transition-opacity">
+                Mokta&apos;b | مكتئب
               </span>
             </Link>
           </div>
@@ -88,7 +106,7 @@ export function Navbar() {
                   <LayoutDashboard className="w-5 h-5" />
                   {t.dashboard.title}
                 </Link>
-                {user.role === 'admin' && (
+                {user.role === "admin" && (
                   <Link
                     href="/users"
                     className="flex items-center gap-2 text-foreground/90 hover:text-primary px-4 py-2 rounded-xl text-base font-medium transition-all hover:bg-muted/50"
@@ -114,7 +132,7 @@ export function Navbar() {
                   title="User Menu"
                 >
                   <div className="w-10 h-10 bg-linear-to-r from-primary to-primary-dark rounded-full flex items-center justify-center text-white font-semibold shadow-md">
-                    {getInitials(user.name || user.email?.split('@')[0] || '')}
+                    {getInitials(user.name || user.email?.split("@")[0] || "")}
                   </div>
                   <ChevronDown className="w-4 h-4 text-foreground/60" />
                 </button>
@@ -125,13 +143,19 @@ export function Navbar() {
                     <div className="px-5 py-4 border-b border-border">
                       <div className="flex items-center gap-2">
                         <div className="p-2 bg-linear-to-r from-primary to-primary-dark rounded-full flex items-center justify-center text-white font-semibold text-md shadow-md">
-                          {getInitials(user.name || user.email?.split('@')[0] || '')}
+                          {getInitials(
+                            user.name || user.email?.split("@")[0] || ""
+                          )}
                         </div>
                         <div>
-                          <p className="font-semibold text-foreground text-lg">{user.name}</p>
-                          <p className="text-sm text-foreground/70">{user.email}</p>
+                          <p className="font-semibold text-foreground text-lg">
+                            {user.name}
+                          </p>
+                          <p className="text-sm text-foreground/70">
+                            {user.email}
+                          </p>
                           <p className="text-xs text-foreground capitalize w-fit mt-1 bg-primary-dark rounded-full px-2 py-1">
-                            {user.role || 'Student'}
+                            {user.role || "Student"}
                           </p>
                         </div>
                       </div>
@@ -148,7 +172,7 @@ export function Navbar() {
                         {t.dashboard.title}
                       </Link>
 
-                      {user.role === 'admin' && (
+                      {user.role === "admin" && (
                         <Link
                           href="/users"
                           className="flex items-center gap-3 px-5 py-3 text-base text-foreground/90 hover:bg-muted/50 hover:text-foreground transition-colors"
@@ -177,7 +201,7 @@ export function Navbar() {
               <div className="flex space-x-4 rtl:space-x-reverse">
                 <Link
                   href="/login"
-                  className="px-6 py-2.5 border-2 border-primary text-primary font-medium rounded-xl hover:bg-primary/10 transition-all duration-300 text-base"
+                  className="px-6 mx-2 py-2.5 border-2 border-primary text-primary font-medium rounded-xl hover:bg-primary/10 transition-all duration-300 text-base"
                 >
                   {t.auth.login}
                 </Link>
@@ -232,7 +256,7 @@ export function Navbar() {
                   <LayoutDashboard className="w-5 h-5" />
                   {t.dashboard.title}
                 </Link>
-                {user.role === 'admin' && (
+                {user.role === "admin" && (
                   <Link
                     href="/users"
                     className="flex items-center gap-3 px-4 py-3 text-foreground/90 hover:text-primary rounded-xl hover:bg-muted/50 transition-colors text-lg font-medium"

@@ -2,10 +2,23 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyToken } from '@/lib/jwt';
 
-export default function middleware(request: NextRequest) {
+export  function proxy(request: NextRequest) {
+
   const isDashboardRoute = request.nextUrl.pathname.startsWith('/dashboard');
+  const isWriteOperation = ['POST', 'PUT', 'DELETE'].includes(request.method);
+  const isManagementRoute = request.nextUrl.pathname.includes('/create') ||
+                           request.nextUrl.pathname.includes('/my-quizzes');
+  const isSubmissionsRoute = request.nextUrl.pathname.includes('/submissions');
+
+  const isPasswordVerification = request.method === 'POST' &&
+    /^\/api\/quiz\/[^\/]+$/.test(request.nextUrl.pathname) &&
+    !isManagementRoute && !isSubmissionsRoute;
+
   const isProtectedApiRoute = request.nextUrl.pathname.startsWith('/api/quiz/') &&
-    !request.nextUrl.pathname.includes('/submit');
+    !request.nextUrl.pathname.includes('/submit') &&
+    !isPasswordVerification &&
+    (isWriteOperation || isManagementRoute || isSubmissionsRoute);
+
 
   if (isDashboardRoute || isProtectedApiRoute) {
     const token = request.cookies.get('auth_token')?.value;
@@ -15,7 +28,7 @@ export default function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/login', request.url));
       } else {
         return NextResponse.json(
-          { success: false, error: 'Unauthorized' },
+          { success: false, error: 'Unauthorized - No token' },
           { status: 401 }
         );
       }
@@ -49,5 +62,4 @@ export default function middleware(request: NextRequest) {
 
 export const config = {
   matcher: ['/dashboard/:path*', '/api/quiz/:path*'],
-  runtime: 'nodejs',
 }

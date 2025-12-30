@@ -3,10 +3,8 @@
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
-import { Navbar } from '@/components/ui/Navbar';
 import { translations } from '@/lib/i18n';
-import { ArrowRight, BookOpen, Users, BarChart3, Zap, Trophy, Globe } from 'lucide-react';
-import { Footer } from '@/components/ui/Footer';
+import { ArrowRight, BookOpen, Users, BarChart3, Zap } from 'lucide-react';
 
 export default function Home() {
   const { user } = useAuthStore();
@@ -20,7 +18,7 @@ export default function Home() {
         <section className="py-20 md:py-32 bg-linear-to-br from-primary/5 via-background to-muted/50">
           <div className="container mx-auto px-6 text-center">
             <div className="max-w-4xl mx-auto">
-              <h1 className="text-5xl md:text-7xl font-extrabold mb-8 bg-linear-to-r from-primary to-primary-dark bg-clip-text text-transparent">
+              <h1 className="text-5xl/normal md:text-6xl font-extrabold  mb-8 bg-linear-to-r from-primary to-primary-dark bg-clip-text text-transparent">
                 {t.home.title}
               </h1>
               <p className="text-xl md:text-2xl mb-10  leading-relaxed">
@@ -31,10 +29,10 @@ export default function Home() {
                 {user ? (
                   <Link
                     href="/dashboard"
-                    className="inline-flex items-center px-8 py-4 bg-linear-to-r from-primary to-primary-dark text-white font-semibold rounded-xl hover:from-primary-hover hover:to-primary/50 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-primary/30"
+                    className="inline-flex items-center mx-auto justify-center w-fit px-8 py-4 bg-linear-to-r from-primary to-primary-dark text-white font-semibold rounded-xl hover:from-primary-hover hover:to-primary/50 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-primary/30"
                   >
                     {t.dashboard.title}
-                    <ArrowRight className="w-5 h-5 ml-2" />
+                    <ArrowRight className="w-5 h-5 mx-2" />
                   </Link>
                 ) : (
                   <>
@@ -124,19 +122,19 @@ export default function Home() {
             <div className="grid md:grid-cols-4 gap-10 text-center">
               <div className="p-8 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20">
                 <div className="text-5xl font-bold mb-3">1000+</div>
-                <div className="text-lg opacity-90">Active Users</div>
+                <div className="text-lg opacity-90">{t.stats.activeUsers}</div>
               </div>
               <div className="p-8 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20">
                 <div className="text-5xl font-bold mb-3">5000+</div>
-                <div className="text-lg opacity-90">Quizzes Created</div>
+                <div className="text-lg opacity-90">{t.stats.quizzesCreated}</div>
               </div>
-              <div className="p-8 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20">
+              <div className="p-8 bg-white/10 backdrop-blur-md rounded-3xl text-center border border-white/20">
                 <div className="text-5xl font-bold mb-3">25K+</div>
-                <div className="text-lg opacity-90">Questions Answered</div>
+                <div className="text-lg opacity-90 whitespace-nowrap flex items-center justify-center">{t.stats.questionsAnswered}</div>
               </div>
               <div className="p-8 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20">
                 <div className="text-5xl font-bold mb-3">4.8/5</div>
-                <div className="text-lg opacity-90">User Rating</div>
+                <div className="text-lg opacity-90">{t.stats.userRating}</div>
               </div>
             </div>
           </div>

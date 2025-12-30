@@ -1,6 +1,6 @@
 {
   "common": {
-    "welcome": "Welcome to QuizMaster",
+    "welcome": "Welcome to Mokta'b|مكتئب ",
     "loading": "Loading...",
     "submit": "Submit",
     "cancel": "Cancel",
@@ -29,7 +29,8 @@
     "share": "Share",
     "language": "Language",
     "theme": "Theme",
-    "deleteError": "Failed to delete"
+    "deleteError": "Failed to delete",
+    "view": "View"
   },
   "auth": {
     "login": "Login",
@@ -150,7 +151,13 @@
     "unanswered": "Unanswered",
     "notFound": "Quiz not found",
     "createdAt": "Created At",
-    "minutes": "minutes"
+    "minutes": "minutes",
+    "password": "Password",
+    "passwordPlaceholder": "Enter a password for the quiz (optional)",
+    "enterQuizPassword": "Enter quiz password",
+    "passwordRequired": "Password is required",
+    "incorrectPassword": "Incorrect password",
+    "verifyPassword": "Verify Password"
   },
   "results": {
     "submissions": "Submissions",
@@ -188,7 +195,7 @@
     "tipShare": "Share your results with others!"
   },
   "home": {
-    "title": "Welcome to QuizMaster",
+    "title": "Welcome to Mokta'b|مكتئب ",
     "subtitle": "Create, share, and take quizzes online. Perfect for teachers, students, and educators.",
     "forTeachers": "For Teachers",
     "teachersDesc": "Create quizzes with unlimited questions, track student performance, and get detailed analytics.",
@@ -212,6 +219,12 @@
     "helpCenter": "Help Center",
     "madeWithLove": "Made with love for education",
     "allRightsReserved": "All rights reserved"
+  },
+  "stats": {
+    "activeUsers": "Active Users",
+    "quizzesCreated": "Quizzes Created",
+    "questionsAnswered": "Questions Answered",
+    "userRating": "User Rating"
   },
   "admin": {
     "users": "Users",

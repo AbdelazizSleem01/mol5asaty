@@ -2,17 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import { translations } from '@/lib/i18n';
 import { QuizForm } from '@/components/quiz/QuizForm';
-import { Question } from '@/types';
+import { Question, Quiz } from '@/types';
 import { Loader2, ArrowLeft } from 'lucide-react';
 
 export default function EditQuizPage() {
   const params = useParams();
   const router = useRouter();
-  const [quiz, setQuiz] = useState<any>(null);
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -22,7 +21,7 @@ export default function EditQuizPage() {
   useEffect(() => {
     const fetchQuiz = async () => {
       try {
-        const response = await fetch(`/api/quiz/${params.quizId}`, {
+        const response = await fetch(`/api/quiz/${params.slug}`, {
           credentials: 'include',
         });
 
@@ -41,12 +40,12 @@ export default function EditQuizPage() {
     };
 
     fetchQuiz();
-  }, [params.quizId, router]);
+  }, [params.slug, router]);
 
-  const handleUpdateQuiz = async (quizData: { title: string; displayName?: string; thumbnail?: string; timeLimit?: number; questions: Question[] }) => {
+  const handleUpdateQuiz = async (quizData: { title: string; displayName?: string; thumbnail?: string; timeLimit?: number; password?: string; questions: Question[] }) => {
     setIsUpdating(true);
     try {
-      const response = await fetch(`/api/quiz/${params.quizId}`, {
+      const response = await fetch(`/api/quiz/${params.slug}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

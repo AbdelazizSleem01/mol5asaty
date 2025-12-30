@@ -1,6 +1,6 @@
 {
   "common": {
-    "welcome": "مرحباً بكم في QuizMaster",
+    "welcome": "مرحباً بكم في Mokta'b|مكتئب ",
     "loading": "جاري التحميل...",
     "submit": "إرسال",
     "cancel": "إلغاء",
@@ -29,7 +29,8 @@
     "share": "مشاركة",
     "language": "اللغة",
     "theme": "المظهر",
-    "deleteError": "فشل في الحذف"
+    "deleteError": "فشل في الحذف",
+    "view": "عرض"
   },
   "auth": {
     "login": "تسجيل الدخول",
@@ -150,7 +151,13 @@
     "unanswered": "لم يتم الإجابة",
     "notFound": "الاختبار غير موجود",
     "createdAt": "تاريخ الإنشاء",
-    "minutes": "دقيقة"
+    "minutes": "دقيقة",
+    "password": "كلمة المرور",
+    "passwordPlaceholder": "أدخل كلمة مرور للاختبار (اختياري)",
+    "enterQuizPassword": "أدخل كلمة مرور الاختبار",
+    "passwordRequired": "كلمة المرور مطلوبة",
+    "incorrectPassword": "كلمة المرور غير صحيحة",
+    "verifyPassword": "التحقق من كلمة المرور"
   },
   "results": {
     "submissions": "الإجابات المقدمة",
@@ -188,7 +195,7 @@
     "tipShare": "شارك نتائجك مع الآخرين!"
   },
   "home": {
-    "title": "مرحباً بكم في QuizMaster",
+    "title": "مرحباً بكم في Mokta'b|مكتئب ",
     "subtitle": "أنشئ وشارك وخذ الاختبارات عبر الإنترنت. مثالي للمعلمين والطلاب والمربين.",
     "forTeachers": "للمعلمين",
     "teachersDesc": "أنشئ اختبارات بأسئلة غير محدودة، تتبع أداء الطلاب واحصل على تحليلات مفصلة.",
@@ -212,6 +219,12 @@
     "helpCenter": "مركز المساعدة",
     "madeWithLove": "مصنوع بحب للتعليم",
     "allRightsReserved": "جميع الحقوق محفوظة"
+  },
+  "stats": {
+    "activeUsers": "المستخدمين النشطين",
+    "quizzesCreated": "الاختبارات المُنشأة",
+    "questionsAnswered": "الأسئلة المجابة",
+    "userRating": "تقييم المستخدمين"
   },
   "admin": {
     "users": "المستخدمين",

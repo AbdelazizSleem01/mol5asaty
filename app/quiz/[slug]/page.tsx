@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuizStore } from '@/store/quizStore';
 import { useUIStore } from '@/store/uiStore';
 import { translations } from '@/lib/i18n';
 import { Quiz } from '@/types';
 import { Loader2, ArrowLeft, ArrowRight, Check } from 'lucide-react';
+import Image from 'next/image';
 
 export default function QuizPage() {
   const params = useParams();
@@ -19,19 +20,27 @@ export default function QuizPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isTimeUp, setIsTimeUp] = useState(false);
+  const [password, setPassword] = useState('');
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
-  const { setCurrentQuiz, setStudentName: setStoreStudentName, setSubmittedQuiz, setQuizStartTime, setQuizEndTime, quizStartTime, quizEndTime } = useQuizStore();
+  const { setCurrentQuiz, setStudentName: setStoreStudentName, setSubmittedQuiz, setQuizStartTime, setQuizEndTime, quizStartTime } = useQuizStore();
   const { language } = useUIStore();
   const t = translations[language];
 
   useEffect(() => {
     const fetchQuiz = async () => {
       try {
-        const response = await fetch(`/api/quiz/${params.quizId}`);
+        const response = await fetch(`/api/quiz/${params.slug}`);
         const data = await response.json();
         if (data.success) {
           setQuiz(data.quiz);
           setAnswers(new Array(data.quiz.questions.length).fill(-1));
+          if (data.quiz.hasPassword) {
+            setIsPasswordModalOpen(true);
+          }
         } else {
           router.push('/');
         }
@@ -44,22 +53,70 @@ export default function QuizPage() {
     };
 
     fetchQuiz();
-    fetchQuiz();
-  }, [params.quizId, router]);
+  }, [params.slug, router]);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const checkAuthStatus = async () => {
       try {
         const response = await fetch('/api/user/profile', { credentials: 'include' });
-        const data = await response.json();
-        if (data.success && data.user) {
-          setStudentName(data.user.name);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.user) {
+            setStudentName(data.user.name);
+            setIsLoggedIn(true);
+          } else {
+            setIsLoggedIn(false);
+          }
+        } else {
+          setIsLoggedIn(false);
         }
-      } catch (error) {
+      } catch {
+        setIsLoggedIn(false);
+      } finally {
+        setAuthChecked(true);
       }
     };
-    fetchProfile();
+
+    // Small delay to ensure proper auth checking
+    const timer = setTimeout(() => {
+      checkAuthStatus();
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, []);
+
+  const handleSubmit = useCallback(async () => {
+    const endTime = new Date();
+    setQuizEndTime(endTime);
+
+    try {
+      const response = await fetch('/api/quiz/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          quizId: params.slug,
+          studentName,
+          answers,
+          startTime: quizStartTime,
+          endTime: endTime,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSubmittedQuiz(data.submission);
+        router.push(`/quiz/${params.slug}/result`);
+      } else {
+        alert('Failed to submit quiz. Please try again.');
+      }
+    } catch {
+      alert('Failed to submit quiz. Please try again.');
+    }
+  }, [params.slug, studentName, answers, quizStartTime, setQuizEndTime, setSubmittedQuiz, router]);
 
   useEffect(() => {
     if (hasStarted && timeLeft !== null && timeLeft > 0 && !isTimeUp) {
@@ -76,7 +133,34 @@ export default function QuizPage() {
 
       return () => clearInterval(timer);
     }
-  }, [hasStarted, timeLeft, isTimeUp]);
+  }, [hasStarted, timeLeft, isTimeUp, handleSubmit]);
+
+  const handleVerifyPassword = async () => {
+    if (!password.trim()) {
+      setPasswordError(t.quiz.passwordRequired);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/quiz/${params.slug}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      });
+
+      const data = await response.json();
+      if (data.success && data.valid) {
+        setIsPasswordModalOpen(false);
+        setPasswordError('');
+      } else {
+        setPasswordError(t.quiz.incorrectPassword);
+      }
+  } catch {
+      setPasswordError('Failed to verify password');
+    }
+  };
 
   const handleStartQuiz = () => {
     if (!studentName.trim()) return;
@@ -111,41 +195,6 @@ export default function QuizPage() {
     }
   };
 
-  const handleSubmit = async () => {
-    // Record end time
-    const endTime = new Date();
-    setQuizEndTime(endTime);
-
-    try {
-      const response = await fetch('/api/quiz/submit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          quizId: params.quizId,
-          studentName,
-          answers,
-          startTime: quizStartTime,
-          endTime: endTime,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setSubmittedQuiz(data.submission);
-        router.push(`/quiz/${params.quizId}/result`);
-      } else {
-        alert('Failed to submit quiz. Please try again.');
-      }
-    } catch (error) {
-      console.error('Failed to submit quiz:', error);
-      alert('Failed to submit quiz. Please try again.');
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -158,55 +207,126 @@ export default function QuizPage() {
 
   if (!hasStarted) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-primary/5 via-background to-muted/50 flex items-center justify-center p-4">
-        <div className="bg-card rounded-3xl shadow-2xl border border-border/50 p-10 max-w-md w-full text-center">
-          {quiz.thumbnail && (
-            <div className="mb-6">
-              <img
-                src={quiz.thumbnail}
-                alt={quiz.displayName || quiz.title}
-                className="w-32 h-32 object-cover rounded-2xl mx-auto shadow-lg"
-              />
-            </div>
-          )}
-          <h1 className="text-3xl md:text-4xl font-bold bg-linear-to-r from-primary to-primary-dark bg-clip-text text-transparent mb-4">
-            {quiz.title}
-          </h1>
-          {quiz.creatorName && (
-            <p className="text-lg text-foreground/70 mb-2">
-              Created by: {quiz.creatorName}
+      <>
+        <div className="min-h-screen bg-linear-to-br from-primary/5 via-background to-muted/50 flex items-center justify-center p-4">
+          <div className="bg-card rounded-3xl shadow-2xl border border-border/50 p-10 max-w-md w-full text-center">
+            {quiz.thumbnail && (
+              <div className="mb-6">
+                <Image
+                  src={quiz.thumbnail}
+                  alt={quiz.displayName || quiz.title}
+                  className="w-32 h-32 object-cover rounded-2xl mx-auto shadow-lg"
+                  width={128}
+                  height={128}
+                  loading="eager"
+               />
+              </div>
+            )}
+            <h1 className="text-3xl md:text-4xl font-bold bg-linear-to-r from-primary to-primary-dark bg-clip-text text-transparent mb-4">
+              {quiz.title}
+            </h1>
+            {quiz.creatorName && (
+              <p className="text-lg text-foreground/70 mb-2">
+                Created by: {quiz.creatorName}
+              </p>
+            )}
+            <p className="text-xl text-foreground/80 mb-8">
+              {quiz.questions.length} {t.quiz.questions.toLowerCase()}
             </p>
-          )}
-          <p className="text-xl text-foreground/80 mb-8">
-            {quiz.questions.length} {t.quiz.questions.toLowerCase()}
-          </p>
 
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <label htmlFor="name" className="block text-sm font-semibold text-foreground/90">
-                {t.quiz.enterName}
-              </label>
-              <input
-                type="text"
-                id="name"
-                value={studentName}
-                onChange={(e) => setStudentName(e.target.value)}
-                className="w-full px-5 py-3 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-foreground transition-all"
-                placeholder="John Doe"
-                required
-              />
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label htmlFor="name" className="block text-sm font-semibold text-foreground/90">
+                  {t.quiz.enterName}
+                </label>
+                <input
+                  type="text"
+                  id="name"
+                  value={studentName}
+                  onChange={(e) => setStudentName(e.target.value)}
+                  className="w-full px-5 py-3 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-foreground transition-all"
+                  placeholder="John Doe"
+                  required
+                />
+              </div>
+
+              {/* Login Recommendation */}
+              {authChecked && !isLoggedIn && (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-amber-500/20 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="text-amber-600 text-sm">⚠️</span>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                        {language === 'ar' ? 'تحذير: بدون تسجيل دخول، لن تتمكن من رؤية نتائجك لاحقاً!' : 'Warning: Without login, you cannot view your results later!'}
+                      </p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        {language === 'ar'
+                          ? 'إذا لم تسجل دخولك، ستتمكن من إجراء الاختبار لكن لن تتمكن من رؤية نتائجك أو مراجعة إجاباتك بعد مغادرة الصفحة'
+                          : 'If you don\'t login, you can take the quiz but won\'t be able to view your results or review your answers after leaving the page'
+                        }
+                      </p>
+                      <button
+                        onClick={() => router.push('/login')}
+                        className="text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 px-3 py-1 rounded-md transition-colors font-medium"
+                      >
+                        {language === 'ar' ? 'تسجيل الدخول' : 'Login Now'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={handleStartQuiz}
+                disabled={!studentName.trim()}
+                className="w-full px-6 py-4 bg-linear-to-r from-primary to-primary-dark text-white font-semibold rounded-xl hover:from-primary-hover hover:to-primary-dark disabled:opacity-50 transition-all shadow-lg hover:shadow-primary/30 transform hover:scale-[1.02]"
+              >
+                {t.quiz.startQuiz}
+              </button>
             </div>
-
-            <button
-              onClick={handleStartQuiz}
-              disabled={!studentName.trim()}
-              className="w-full px-6 py-4 bg-linear-to-r from-primary to-primary-dark text-white font-semibold rounded-xl hover:from-primary-hover hover:to-primary-dark disabled:opacity-50 transition-all shadow-lg hover:shadow-primary/30 transform hover:scale-[1.02]"
-            >
-              {t.quiz.startQuiz}
-            </button>
           </div>
         </div>
-      </div>
+
+        {/* Password Modal */}
+        {isPasswordModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-card rounded-3xl shadow-2xl border border-border/50 p-8 max-w-md w-full">
+              <h2 className="text-2xl font-bold text-center mb-6 text-foreground">
+                {t.quiz.enterQuizPassword}
+              </h2>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="quizPassword" className="block text-sm font-semibold text-foreground/90">
+                    {t.quiz.password}
+                  </label>
+                  <input
+                    type="password"
+                    id="quizPassword"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-5 py-3 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-foreground transition-all"
+                    placeholder={t.quiz.password}
+                    required
+                  />
+                  {passwordError && (
+                    <p className="text-red-500 text-sm">{passwordError}</p>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleVerifyPassword}
+                  className="w-full px-6 py-3 bg-linear-to-r from-primary to-primary-dark text-white font-semibold rounded-xl hover:from-primary-hover hover:to-primary-dark transition-all shadow-lg hover:shadow-primary/30"
+                >
+                  {t.quiz.verifyPassword}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
@@ -219,9 +339,12 @@ export default function QuizPage() {
         <div className="bg-card rounded-2xl shadow-lg border border-border/50 p-4 mb-6">
           <div className="flex items-center gap-4">
             {quiz.thumbnail && (
-              <img
+              <Image
                 src={quiz.thumbnail}
                 alt={quiz.displayName || quiz.title}
+                width={48}
+                height={48}
+                loading="lazy"
                 className="w-12 h-12 object-cover rounded-lg shadow-sm"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
@@ -244,7 +367,7 @@ export default function QuizPage() {
             {timeLeft !== null && (
               <div className={`px-4 py-2 rounded-lg font-mono text-lg font-bold ${timeLeft <= 300 // 5 minutes
                 ? 'bg-red-500/20 text-red-600 dark:text-red-400'
-                : timeLeft <= 600 // 10 minutes
+                : timeLeft <= 600 
                   ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400'
                   : 'bg-primary/10 text-primary'
                 }`}>

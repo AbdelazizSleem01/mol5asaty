@@ -6,11 +6,11 @@ import { Question } from '@/types';
 import { useUIStore } from '@/store/uiStore';
 import { translations } from '@/lib/i18n';
 import { AddQuestionModal } from './AddQuestionModal';
-import { Loader2, Plus, Trash2, Edit3 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Edit3, Eye, EyeOff } from 'lucide-react';
 
 interface QuizFormProps {
-  onSubmit: (quizData: { title: string; displayName?: string; thumbnail?: string; timeLimit?: number; questions: Question[] }) => Promise<void>;
-  initialData?: { title: string; displayName?: string; thumbnail?: string; timeLimit?: number; questions: Question[] };
+  onSubmit: (quizData: { title: string; displayName?: string; thumbnail?: string; timeLimit?: number; password?: string; questions: Question[] }) => Promise<void>;
+  initialData?: { title: string; displayName?: string; thumbnail?: string; timeLimit?: number; password?: string; questions: Question[] };
 }
 
 export function QuizForm({ onSubmit, initialData }: QuizFormProps) {
@@ -18,16 +18,22 @@ export function QuizForm({ onSubmit, initialData }: QuizFormProps) {
   const [displayName, setDisplayName] = useState(initialData?.displayName || '');
   const [thumbnail, setThumbnail] = useState(initialData?.thumbnail || '');
   const [timeLimit, setTimeLimit] = useState<number | undefined>(initialData?.timeLimit);
+  const [password, setPassword] = useState(initialData?.password || '');
   const [questions, setQuestions] = useState<Question[]>(initialData?.questions || []);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  const [formData, setFormData] = useState({
+    questionText: '',
+    choices: ['', '', '', ''],
+    correctAnswer: 0
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { language } = useUIStore();
   const t = translations[language];
 
-  // Reset image error when thumbnail URL changes
   useEffect(() => {
     setImageError(false);
   }, [thumbnail]);
@@ -48,6 +54,11 @@ export function QuizForm({ onSubmit, initialData }: QuizFormProps) {
     const questionToEdit = questions.find((q) => q.id === id);
     if (questionToEdit) {
       setEditingQuestion(questionToEdit);
+      setFormData({
+        questionText: questionToEdit.questionText,
+        choices: [...questionToEdit.choices],
+        correctAnswer: questionToEdit.correctAnswer
+      });
       setIsModalOpen(true);
     }
   };
@@ -74,6 +85,7 @@ export function QuizForm({ onSubmit, initialData }: QuizFormProps) {
         displayName: displayName || undefined,
         thumbnail: thumbnail || undefined,
         timeLimit,
+        password: password || undefined,
         questions
       });
     } finally {
@@ -193,6 +205,34 @@ export function QuizForm({ onSubmit, initialData }: QuizFormProps) {
         </p>
       </div>
 
+      {/* Password */}
+      <div className="space-y-2">
+        <label htmlFor="password" className="block text-sm font-semibold text-foreground/90">
+          {t.quiz.password}
+        </label>
+        <div className="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            id="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-5 py-3 pr-12 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-foreground transition-all"
+            placeholder={t.quiz.passwordPlaceholder}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/60 hover:text-foreground/80 transition-colors"
+            title={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+          </button>
+        </div>
+        <p className="text-xs text-foreground/60">
+          Optional: Set a password to restrict quiz access
+        </p>
+      </div>
+
       {/* Questions Section */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -203,6 +243,11 @@ export function QuizForm({ onSubmit, initialData }: QuizFormProps) {
             type="button"
             onClick={() => {
               setEditingQuestion(null);
+              setFormData({
+                questionText: '',
+                choices: ['', '', '', ''],
+                correctAnswer: 0
+              });
               setIsModalOpen(true);
             }}
             className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-primary to-primary-dark text-white font-medium rounded-xl hover:from-primary-hover hover:to-primary-dark transition-all shadow-md hover:shadow-primary/30 transform hover:scale-105"
@@ -223,7 +268,15 @@ export function QuizForm({ onSubmit, initialData }: QuizFormProps) {
               </p>
               <button
                 type="button"
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => {
+                  setEditingQuestion(null);
+                  setFormData({
+                    questionText: '',
+                    choices: ['', '', '', ''],
+                    correctAnswer: 0
+                  });
+                  setIsModalOpen(true);
+                }}
                 className="inline-flex items-center gap-2 px-8 py-4 bg-linear-to-r from-primary to-primary-dark text-white rounded-xl hover:from-primary-hover hover:to-primary-dark transition-all shadow-lg hover:shadow-primary/30"
               >
                 <Plus className="w-5 h-5" />
@@ -265,7 +318,7 @@ export function QuizForm({ onSubmit, initialData }: QuizFormProps) {
                 <div className="space-y-3">
                   {q.choices.map((choice, idx) => (
                     <div
-                      key={`${q.id}-choice-${idx}`}
+                      key={`choice-${q.id}-${idx}`}
                       className={`flex items-center gap-3 p-3 rounded-xl ${idx === q.correctAnswer
                           ? 'bg-green-500/10 border border-green-500/30'
                           : 'bg-muted/50 border border-border'
@@ -312,7 +365,9 @@ export function QuizForm({ onSubmit, initialData }: QuizFormProps) {
           setEditingQuestion(null);
         }}
         onAdd={editingQuestion ? updateQuestion : addQuestion}
-        editingQuestion={editingQuestion}
+        isEditing={!!editingQuestion}
+        formData={formData}
+        setFormData={setFormData}
       />
     </form>
   );

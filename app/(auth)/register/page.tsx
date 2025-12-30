@@ -5,8 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
-import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
-import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { translations } from '@/lib/i18n';
 import { FcGoogle } from 'react-icons/fc';
 import { User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
@@ -80,8 +78,8 @@ export default function RegisterPage() {
       });
 
       router.push('/dashboard');
-    } catch (err: any) {
-      const errorMessage = err.message || t.auth.registrationFailed || 'Registration failed';
+    } catch (err: unknown) {
+      const errorMessage = (err instanceof Error ? err.message : t.auth.registrationFailed) || 'Registration failed';
       setError(errorMessage);
 
       MySwal.fire({
@@ -315,7 +313,7 @@ export default function RegisterPage() {
       {/* Footer */}
       <footer className="py-6 text-center border-t border-border">
         <p className="text-sm ">
-          © {new Date().getFullYear()} QuizMaster. {t.common.allRightsReserved}.
+          © {new Date().getFullYear()} Mokta&apos;b|مكتئب . {t.common.allRightsReserved}.
         </p>
       </footer>
     </div>

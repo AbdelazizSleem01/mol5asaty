@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import { translations } from '@/lib/i18n';
 import { QuizForm } from '@/components/quiz/QuizForm';
@@ -11,7 +10,6 @@ import { Loader2, ArrowLeft } from 'lucide-react';
 
 export default function CreateQuizPage() {
   const [isCreating, setIsCreating] = useState(false);
-  const { user } = useAuthStore();
   const { language } = useUIStore();
   const router = useRouter();
   const t = translations[language];
@@ -31,7 +29,9 @@ export default function CreateQuizPage() {
       const data = await response.json();
 
       if (data.success) {
-        router.push(`/quiz/${data.quiz.id}/submissions`);
+        // Use slug if available, otherwise fallback to ID
+        const quizIdentifier = data.quiz.slug || data.quiz.id;
+        router.push(`/quiz/${quizIdentifier}/submissions`);
       } else {
         alert(data.error || t.quiz.failedToCreateQuiz || 'Failed to create quiz');
       }

@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+
+# Block access to sensitive areas
+Disallow: /api/
+Disallow: /_next/
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /profile/
+
+# Allow important pages
+Allow: /quiz/
+Allow: /
+
+# Sitemap
+Sitemap: https://moktab.vercel.app/sitemap.xml
+
+# Crawl-delay for bots
+Crawl-delay: 1

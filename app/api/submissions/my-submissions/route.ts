@@ -4,7 +4,7 @@ import { connectToDatabase } from '@/lib/database/connect';
 import { Submission } from '@/lib/database/models/Submission';
 import { verifyToken } from '@/lib/jwt';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
@@ -29,7 +29,10 @@ export async function GET(request: Request) {
     const submissions = await Submission.find({
       $or: [
         { userId: decoded.userId },
-        { studentName: decoded.name }
+        {
+          userId: { $exists: false },
+          studentName: decoded.name
+        }
       ]
     })
       .populate({
@@ -41,24 +44,27 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      submissions: submissions.map(sub => ({
-        id: sub._id.toString(),
-        quizId: sub.quizId._id.toString(),
-        studentName: sub.studentName,
-        answers: sub.answers,
-        score: sub.score,
-        timeSpent: sub.timeSpent,
-        submittedAt: sub.submittedAt,
-        quiz: {
-          title: sub.quizId.title,
-          questionsCount: sub.quizId.questions?.length || 0,
-          questions: sub.quizId.questions,
-          createdAt: sub.quizId.createdAt,
-          timeLimit: sub.quizId.timeLimit
-        }
-      }))
+      submissions: submissions
+        .filter(sub => sub.quizId) 
+        .map(sub => ({
+          id: sub._id.toString(),
+          quizId: sub.quizId._id.toString(),
+          studentName: sub.studentName,
+          answers: sub.answers,
+          score: sub.score,
+          timeSpent: sub.timeSpent,
+          submittedAt: sub.submittedAt,
+          quiz: {
+            title: sub.quizId.title,
+            questionsCount: sub.quizId.questions?.length || 0,
+            questions: sub.quizId.questions,
+            createdAt: sub.quizId.createdAt,
+            timeLimit: sub.quizId.timeLimit
+          }
+        }))
     });
   } catch (error) {
+    console.error(error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

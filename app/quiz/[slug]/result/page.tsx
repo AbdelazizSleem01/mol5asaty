@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useQuizStore } from '@/store/quizStore';
 import { useUIStore } from '@/store/uiStore';
 import { translations } from '@/lib/i18n';
-import { Quiz, Submission } from '@/types';
+import { Quiz, Question } from '@/types';
 import { CheckCircle, XCircle, Award, Home, Share2, ArrowLeft, Loader2 } from 'lucide-react';
 
 export default function QuizResultPage() {
@@ -19,12 +19,11 @@ export default function QuizResultPage() {
   const { submittedQuiz, resetQuiz } = useQuizStore();
   const { language } = useUIStore();
   const t = translations[language];
-  const isArabic = language === 'ar';
 
   useEffect(() => {
     const fetchQuiz = async () => {
-      try {
-        const response = await fetch(`/api/quiz/${params.quizId}`);
+    try {
+        const response = await fetch(`/api/quiz/${params.slug}`);
         const data = await response.json();
         if (data.success) {
           setQuiz(data.quiz);
@@ -40,13 +39,39 @@ export default function QuizResultPage() {
     };
 
     fetchQuiz();
-  }, [params.quizId, router]);
+  }, [params.slug, router]);
+
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      const hasAuthToken = document.cookie.includes('auth_token=');
+
+      if (!hasAuthToken) {
+        setIsLoggedIn(false);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/user/profile', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          setIsLoggedIn(data.success && data.user);
+        } else {
+          setIsLoggedIn(false);
+        }
+      } catch {
+        setIsLoggedIn(false);
+      }
+    };
+    checkAuthStatus();
+  }, []);
 
   useEffect(() => {
     if (!submittedQuiz) {
-      router.push(`/quiz/${params.quizId}`);
+      router.push(`/quiz/${params.slug}`);
     }
-  }, [submittedQuiz, params.quizId, router]);
+  }, [submittedQuiz, params.slug, router]);
 
   const getScoreColor = (score: number) => {
     if (score >= 90) return 'text-green-600 dark:text-green-400';
@@ -64,11 +89,11 @@ export default function QuizResultPage() {
 
   const handleNewQuiz = () => {
     resetQuiz();
-    router.push(`/quiz/${params.quizId}`);
+    router.push(`/quiz/${params.slug}`);
   };
 
   const shareResult = () => {
-    const text = `${t.results.shareMessage || 'I scored'} ${submittedQuiz?.score}% ${t.results.on || 'on'} "${quiz?.title}" ${t.results.quizOn || 'quiz on'} QuizMaster!`;
+    const text = `${t.results.shareMessage || 'I scored'} ${submittedQuiz?.score}% ${t.results.on || 'on'} "${quiz?.title}" ${t.results.quizOn || 'quiz on'} Mokta'b|مكتئب !`;
 
     if (navigator.share) {
       navigator.share({
@@ -96,7 +121,6 @@ export default function QuizResultPage() {
 
   const incorrectAnswers = quiz.questions.length - correctAnswers;
 
-  // Calculate time taken
   const timeTaken = submittedQuiz.timeSpent;
 
   const formatTime = (seconds: number) => {
@@ -105,12 +129,7 @@ export default function QuizResultPage() {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const calculateRemainingTime = () => {
-    if (!quiz?.timeLimit || !submittedQuiz?.timeSpent) return null;
-    const timeLimitSeconds = quiz.timeLimit * 60;
-    const remaining = Math.max(0, timeLimitSeconds - submittedQuiz.timeSpent);
-    return remaining;
-  };
+ 
 
   return (
     <div className="min-h-screen bg-linear-to-br from-primary/5 via-background to-muted/50 p-4 md:p-8">
@@ -177,7 +196,7 @@ export default function QuizResultPage() {
                   y="50"
                   textAnchor="middle"
                   dy="0.3em"
-                  className={`text-4xl md:text-2xl font-bold ${getScoreColor(submittedQuiz.score)}`}
+                  className={`text-2xl md:text-2xl font-bold ${getScoreColor(submittedQuiz.score)}`}
                 >
                   {submittedQuiz.score}%
                 </text>
@@ -236,21 +255,21 @@ export default function QuizResultPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={handleNewQuiz}
-                className="inline-flex items-center gap-2 px-8 py-4 bg-linear-to-r from-primary to-primary-dark text-white font-semibold rounded-xl hover:from-primary-hover hover:to-primary-dark transition-all shadow-lg hover:shadow-primary/30"
+                className="inline-flex justify-center items-center gap-2 px-8 py-4 bg-linear-to-r from-primary to-primary-dark text-white font-semibold rounded-xl hover:from-primary-hover hover:to-primary-dark transition-all shadow-lg hover:shadow-primary/30"
               >
                 {t.quiz.retakeQuiz}
               </button>
 
               <button
                 onClick={() => setShowAnswers(!showAnswers)}
-                className="inline-flex items-center gap-2 px-8 py-4 border border-primary text-primary rounded-xl hover:bg-primary/10 transition-all"
+                className="inline-flex justify-center items-center gap-2 px-8 py-4 border border-primary text-primary rounded-xl hover:bg-primary/10 transition-all"
               >
                 {showAnswers ? t.quiz.hideAnswers : t.quiz.showAnswers}
               </button>
 
               <Link
                 href="/"
-                className="inline-flex items-center gap-2 px-8 py-4 border border-border text-foreground/90 rounded-xl hover:bg-muted transition-all"
+                className="inline-flex justify-center items-center gap-2 px-8 py-4 border border-border text-foreground/90 rounded-xl hover:bg-muted transition-all"
               >
                 <Home className="w-5 h-5" />
                 {t.common.home}
@@ -258,6 +277,28 @@ export default function QuizResultPage() {
             </div>
           </div>
         </div>
+
+        {/* Anonymous User Warning */}
+        {!isLoggedIn && (
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 mb-10">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-amber-500/20 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                <span className="text-amber-600 text-lg">⚠️</span>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                  {language === 'ar' ? 'تنبيه: هذه النتيجة غير محفوظة!' : 'Notice: This result is not saved!'}
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {language === 'ar'
+                    ? 'بما أنك لم تسجل دخولك، فإن هذه النتيجة لن تكون متاحة بعد مغادرة الصفحة. سجل دخولك لحفظ نتائجك ومراجعتها لاحقاً.'
+                    : 'Since you didn\'t log in, this result won\'t be available after leaving the page. Login to save your results and review them later.'
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Detailed Answers */}
         {showAnswers && (
@@ -267,7 +308,7 @@ export default function QuizResultPage() {
             </h3>
 
             <div className="space-y-8">
-              {quiz.questions.map((question: any, index: number) => {
+              {quiz.questions.map((question: Question, index: number) => {
                 const studentAnswer = submittedQuiz.answers?.[index] ?? -1;
                 const isCorrect = studentAnswer === question.correctAnswer;
 

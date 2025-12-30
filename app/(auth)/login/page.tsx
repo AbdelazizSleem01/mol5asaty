@@ -5,8 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
-import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
-import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { translations } from '@/lib/i18n';
 import { FcGoogle } from 'react-icons/fc';
 import { AiOutlineEye, AiOutlineEyeInvisible, AiOutlineMail, AiOutlineLock } from 'react-icons/ai';
@@ -68,8 +66,8 @@ export default function LoginPage() {
       setTimeout(() => {
         router.push('/dashboard');
       }, 100);
-    } catch (err: any) {
-      const errorMessage = err.message || t.auth.loginFailed;
+    } catch (err: unknown) {
+      const errorMessage = (err instanceof Error ? err.message : t.auth.loginFailed) || t.auth.loginFailed;
       setError(errorMessage);
 
       MySwal.fire({
@@ -304,7 +302,7 @@ export default function LoginPage() {
 
       <footer className="py-6 text-center">
         <p className="text-sm ">
-          © {new Date().getFullYear()} QuizMaster. {t.common.allRightsReserved}.
+          © {new Date().getFullYear()} Mokta&apos;b|مكتئب . {t.common.allRightsReserved}.
         </p>
       </footer>
     </div>

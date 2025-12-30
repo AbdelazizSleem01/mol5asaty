@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { useUIStore } from '@/store/uiStore';
 
 export default function DashboardLayout({
   children,
@@ -11,24 +10,16 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user } = useAuthStore();
-  const { language } = useUIStore();
   const router = useRouter();
-  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    setIsHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isHydrated) return;
-
     if (!user) {
       router.push('/login');
       return;
     }
-  }, [user, router, isHydrated]);
+  }, [user, router]);
 
-  if (!isHydrated || !user) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>

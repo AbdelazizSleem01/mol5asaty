@@ -1,18 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
-import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import { translations } from '@/lib/i18n';
-import { User, Save, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { User as UserIcon, Save, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { User } from '@/types';
 
 const MySwal = withReactContent(Swal);
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -28,16 +28,11 @@ export default function ProfilePage() {
   });
 
   const { language } = useUIStore();
-  const authUser = useAuthStore(state => state.user);
   const router = useRouter();
   const t = translations[language];
   const isRTL = language === 'ar';
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await fetch('/api/user/profile', {
@@ -72,7 +67,11 @@ export default function ProfilePage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [t.common.error, t.common.ok]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,7 +179,7 @@ export default function ProfilePage() {
         <div className="bg-card rounded-3xl shadow-xl border border-border/50 p-8">
           <div className="flex items-center gap-4 mb-8">
             <div className="w-16 h-16 bg-linear-to-br from-primary/20 to-primary-dark/20 rounded-full flex items-center justify-center">
-              <User className="w-8 h-8 text-primary" />
+              <UserIcon className="w-8 h-8 text-primary" />
             </div>
             <div>
               <h2 className="text-2xl font-bold text-foreground">

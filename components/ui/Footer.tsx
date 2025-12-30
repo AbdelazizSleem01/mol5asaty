@@ -17,7 +17,7 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-1 md:col-span-2">
             <div className="text-2xl font-bold text-blue-400 mb-4 hover:text-blue-300 transition-colors">
-              QuizMaster
+              Mokta&apos;b | مكتئب 
             </div>
             <p className="text-slate-300 mb-4 max-w-md leading-relaxed">
               {t.home.subtitle}
@@ -38,7 +38,7 @@ export function Footer() {
                 <Twitter className="w-5 h-5" />
               </a>
               <a
-                href="mailto:contact@quizmaster.com"
+                href="mailto:contact@Mokta'b|مكتئب .com"
                 className="text-slate-400 hover:text-blue-400 transition-colors p-2 rounded-lg hover:bg-slate-800"
                 aria-label="Email"
               >
@@ -114,7 +114,7 @@ export function Footer() {
         <div className="border-t border-slate-800 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-slate-400 text-sm mb-4 md:mb-0">
-              © {currentYear} QuizMaster. {t.footer.allRightsReserved}
+              © {currentYear} Mokta&apos;b | مكتئب . {t.footer.allRightsReserved}
             </div>
             <div className="flex items-center text-slate-400 text-sm">
               Made with <Heart className="w-4 h-4 text-red-500 mx-1 animate-pulse" /> for education

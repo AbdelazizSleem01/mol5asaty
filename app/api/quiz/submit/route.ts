@@ -11,7 +11,6 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { quizId, studentName, answers, startTime, endTime } = body;
 
-    // Check if user is logged in
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
     let userId = null;
@@ -25,7 +24,10 @@ export async function POST(request: Request) {
 
     await connectToDatabase();
 
-    const quiz = await Quiz.findById(quizId);
+    let quiz = await Quiz.findOne({ slug: quizId });
+    if (!quiz) {
+      quiz = await Quiz.findById(quizId);
+    }
     if (!quiz) {
       return NextResponse.json(
         { success: false, error: 'Quiz not found' },
@@ -42,13 +44,12 @@ export async function POST(request: Request) {
 
     const percentage = Math.round((score / quiz.questions.length) * 100);
 
-    // Calculate time spent
     const timeSpent = startTime && endTime
       ? Math.floor((new Date(endTime).getTime() - new Date(startTime).getTime()) / 1000)
       : null;
 
     const submission = await Submission.create({
-      quizId,
+      quizId: quiz._id,
       userId,
       studentName,
       answers,

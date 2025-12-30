@@ -17,7 +17,6 @@ interface AnswerSheetProps {
 export function AnswerSheet({
   questions,
   studentAnswers,
-  onAnswerChange,
   currentQuestion,
   onQuestionSelect,
 }: AnswerSheetProps) {
