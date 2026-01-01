@@ -272,6 +272,18 @@
     "clearFilters": "Clear filters",
     "usersDisplayed": "users displayed",
     "reset": "Reset",
-    "delete": "Delete"
+    "delete": "Delete",
+    "viewQuizzes": "View Quizzes",
+    "viewQuestions": "View Questions",
+    "hideQuestions": "Hide Questions",
+    "questionsCount": "Questions ({count})",
+    "noQuizzesFound": "No Quizzes Found",
+    "teacherNoQuizzes": "This teacher hasn't created any quizzes yet.",
+    "deleteQuiz": "Delete Quiz",
+    "deleteQuizConfirm": "Are you sure you want to delete this quiz? This action cannot be undone.",
+    "quizDeleted": "Quiz deleted successfully",
+    "copyUserId": "Copy User ID",
+    "copyEmail": "Copy Email",
+    "sendEmail": "Send Email"
   }
 }

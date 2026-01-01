@@ -7,12 +7,13 @@ import { useUIStore } from '@/store/uiStore';
 import { translations } from '@/lib/i18n';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Question } from '@/types';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
-import { 
-  FiUsers, 
-  FiShield, 
-  FiUserCheck, 
+import {
+  FiUsers,
+  FiShield,
+  FiUserCheck,
   FiBookOpen,
   FiEdit2,
   FiTrash2,
@@ -24,13 +25,18 @@ import {
   FiAlertCircle,
   FiFilter,
   FiSearch,
-  FiChevronDown
+  FiChevronDown,
+  FiEye,
+  FiX,
+  FiBarChart,
+  FiFileText,
 } from 'react-icons/fi';
 import { 
   MdAdminPanelSettings,
   MdSchool,
   MdPerson,
 } from 'react-icons/md';
+
 
 const MySwal = withReactContent(Swal);
 
@@ -40,6 +46,22 @@ interface User {
   name: string;
   role: string;
   createdAt: string;
+}
+
+interface Quiz {
+  id: string;
+  slug: string;
+  title: string;
+  displayName: string;
+  thumbnail: string;
+  creatorName: string;
+  questions: Question[];
+  linkToken: string;
+  createdAt: string;
+  updatedAt: string;
+  timeLimit: number;
+  submissionsCount: number;
+  averageScore: number;
 }
 
 export default function UsersPage() {
@@ -58,6 +80,14 @@ export default function UsersPage() {
     key: 'createdAt',
     direction: 'desc'
   });
+
+  // Teacher quizzes modal state
+  const [selectedTeacher, setSelectedTeacher] = useState<User | null>(null);
+  const [teacherQuizzes, setTeacherQuizzes] = useState<Quiz[]>([]);
+  const [quizzesLoading, setQuizzesLoading] = useState(false);
+  const [showQuizzesModal, setShowQuizzesModal] = useState(false);
+  const [selectedQuizForQuestions, setSelectedQuizForQuestions] = useState<Quiz | null>(null);
+  const [showQuestionsModal, setShowQuestionsModal] = useState(false);
 
   const showSuccessAlert = (title: string, text?: string) => {
     MySwal.fire({
@@ -255,13 +285,13 @@ export default function UsersPage() {
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'admin':
-        return <MdAdminPanelSettings className="w-4 h-4 text-red-500" />;
+        return <MdAdminPanelSettings className="w-3 h-3 text-red-500" />;
       case 'teacher':
-        return <MdSchool className="w-4 h-4 text-blue-500" />;
+        return <MdSchool className="w-3 h-3 text-blue-500" />;
       case 'student':
-        return <MdPerson className="w-4 h-4 text-green-500" />;
+        return <MdPerson className="w-3 h-3 text-green-500" />;
       default:
-        return <FiUser className="w-4 h-4 text-gray-500" />;
+        return <FiUser className="w-3 h-3 text-gray-500" />;
     }
   };
 
@@ -275,6 +305,64 @@ export default function UsersPage() {
         return 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800';
       default:
         return 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800';
+    }
+  };
+
+  const handleViewTeacherQuizzes = async (teacher: User) => {
+    setSelectedTeacher(teacher);
+    setQuizzesLoading(true);
+    setShowQuizzesModal(true);
+
+    try {
+      const response = await fetch(`/api/quiz/user/${teacher.id}`, {
+        credentials: 'include',
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setTeacherQuizzes(data.quizzes);
+      } else {
+        showErrorAlert(t.admin.error, data.error || 'Failed to load quizzes');
+        setShowQuizzesModal(false);
+      }
+    } catch (error) {
+      console.error(error);
+      showErrorAlert(t.admin.error, 'Failed to load quizzes');
+      setShowQuizzesModal(false);
+    } finally {
+      setQuizzesLoading(false);
+    }
+  };
+
+  const handleDeleteQuiz = async (quizId: string, teacherId: string) => {
+    const confirmed = await showConfirmAlert(
+      t.admin.deleteQuiz,
+      t.admin.deleteQuizConfirm
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/quiz/user/${teacherId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ quizId }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setTeacherQuizzes(teacherQuizzes.filter(q => q.id !== quizId));
+        showSuccessAlert(t.admin.success, t.admin.quizDeleted);
+      } else {
+        showErrorAlert(t.admin.error, data.error || 'Failed to delete quiz');
+      }
+    } catch (error) {
+      console.error(error);
+      showErrorAlert(t.admin.error, 'Failed to delete quiz');
     }
   };
 
@@ -303,10 +391,10 @@ export default function UsersPage() {
 
   const SortableHeader = ({ children, sortKey }: { children: React.ReactNode; sortKey: string }) => (
     <th 
-      className="text-left py-3 px-4 font-medium text-foreground/70 hover:text-foreground cursor-pointer transition-colors group"
+      className="text-left py-3 px-4 font-medium text-foreground/70 hover:text-foreground cursor-pointer transition-colors group text-sm"
       onClick={() => handleSort(sortKey)}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         {children}
         <FiChevronDown className={`w-3 h-3 transition-transform ${
           sortConfig.key === sortKey && sortConfig.direction === 'desc' ? 'rotate-180' : ''
@@ -429,7 +517,7 @@ export default function UsersPage() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setSelectedRole('all')}
-              className={`px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-sm ${
+              className={`px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-xs ${
                 selectedRole === 'all'
                   ? 'bg-primary text-white shadow-sm'
                   : 'bg-card hover:bg-card-hover text-foreground border border-border'
@@ -440,7 +528,7 @@ export default function UsersPage() {
             </button>
             <button
               onClick={() => setSelectedRole('admin')}
-              className={`px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-sm ${
+              className={`px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-xs ${
                 selectedRole === 'admin'
                   ? 'bg-red-500 text-white shadow-sm'
                   : 'bg-card hover:bg-card-hover text-foreground border border-border'
@@ -451,7 +539,7 @@ export default function UsersPage() {
             </button>
             <button
               onClick={() => setSelectedRole('teacher')}
-              className={`px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-sm ${
+              className={`px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-xs ${
                 selectedRole === 'teacher'
                   ? 'bg-blue-500 text-white shadow-sm'
                   : 'bg-card hover:bg-card-hover text-foreground border border-border'
@@ -462,7 +550,7 @@ export default function UsersPage() {
             </button>
             <button
               onClick={() => setSelectedRole('student')}
-              className={`px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-sm ${
+              className={`px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-xs ${
                 selectedRole === 'student'
                   ? 'bg-green-500 text-white shadow-sm'
                   : 'bg-card hover:bg-card-hover text-foreground border border-border'
@@ -476,7 +564,7 @@ export default function UsersPage() {
       </Card>
 
       {/* Users Table Card */}
-      <Card className="p-0 overflow-hidden border border-border/50 dark:border-gray-800 shadow-sm">
+      <Card className="p-0 overflow-hidden border border-border/50 dark:border-gray-800 shadow-sm max-w-full">
         <div className="p-4 border-b border-border/50 dark:border-gray-800 bg-card/50">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
@@ -535,9 +623,10 @@ export default function UsersPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-250">
               <thead>
                 <tr className="bg-muted/30 dark:bg-gray-800/30 text-xs">
+                  <th className="py-3 px-4 font-medium text-foreground/70 text-left w-8">#</th>
                   <SortableHeader sortKey="name">
                     <div className="flex items-center gap-1.5">
                       <FiUser className="w-3.5 h-3.5" />
@@ -557,13 +646,13 @@ export default function UsersPage() {
                     </div>
                   </SortableHeader>
                   <SortableHeader sortKey="createdAt">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 whitespace-nowrap">
                       <FiCalendar className="w-3.5 h-3.5" />
                       <span>{t.admin.registrationDate}</span>
                     </div>
                   </SortableHeader>
-                  <th className="text-left py-3 px-4 font-medium text-foreground/70">
-                    <div className="flex items-center gap-1.5">
+                  <th className="py-3 px-4 font-medium text-foreground/70 text-right">
+                    <div className="flex items-center gap-1.5 justify-end">
                       <FiEdit2 className="w-3.5 h-3.5" />
                       <span>{t.dashboard.actions}</span>
                     </div>
@@ -571,11 +660,12 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50 dark:divide-gray-800">
-                {sortedUsers.map((user) => (
+                {sortedUsers.map((user, index) => (
                   <tr 
                     key={user.id} 
                     className="hover:bg-card-hover/50 transition-colors duration-150 group"
                   >
+                    <td className="py-3 px-4 text-sm text-muted-foreground">{index + 1}</td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-linear-to-br from-primary/20 to-primary/10 flex items-center justify-center shrink-0">
@@ -583,7 +673,7 @@ export default function UsersPage() {
                             {user.name.charAt(0).toUpperCase()}
                           </span>
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-37.5">
                           <div className="text-sm font-medium text-foreground truncate">
                             {user.name}
                           </div>
@@ -593,26 +683,24 @@ export default function UsersPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 min-w-50">
                       <div className="flex items-center gap-2">
                         <FiMail className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                         <span className="text-sm text-foreground truncate">{user.email}</span>
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 min-w-37.5">
                       <div className="flex items-center gap-2">
-                        <div className="relative">
-                          {getRoleIcon(user.role)}
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <div className={`px-2 py-0.5 rounded-full text-xs font-medium border text-center ${getRoleBadgeColor(user.role)}`}>
+                        {getRoleIcon(user.role)}
+                        <div className="flex items-center gap-2">
+                          <div className={`px-2 py-1 rounded-full text-xs font-medium border ${getRoleBadgeColor(user.role)}`}>
                             {user.role.toUpperCase()}
                           </div>
                           <select
                             value={user.role}
                             onChange={(e) => handleRoleChange(user.id, e.target.value)}
                             disabled={actionLoading === `role-${user.id}`}
-                            className="w-full px-2 py-1 text-xs border border-border dark:border-gray-700 rounded-lg bg-card hover:bg-card-hover focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                            className="text-xs p-1.5 border border-border dark:border-gray-700 rounded-lg bg-card hover:bg-card-hover focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary transition-all duration-200 w-24"
                           >
                             <option value="admin">{t.admin.admin}</option>
                             <option value="teacher">{t.admin.teacher}</option>
@@ -621,10 +709,10 @@ export default function UsersPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 min-w-35">
                       <div className="flex items-center gap-1.5 text-sm text-foreground">
                         <FiCalendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <span>
+                        <span className="text-xs">
                           {new Date(user.createdAt).toLocaleDateString(
                             language === 'ar' ? 'ar-EG' : 'en-US',
                             {
@@ -637,35 +725,46 @@ export default function UsersPage() {
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center justify-end gap-1 flex-nowrap">
+                        {user.role === 'teacher' && (
+                          <Button
+                            onClick={() => handleViewTeacherQuizzes(user)}
+                            variant="ghost"
+                            size="xs"
+                            className="h-7 w-7 p-0 bg-purple-500/10 text-purple-600 dark:hover:text-purple-400"
+                          >
+                            <FiEye className="w-3 h-3" />
+                            
+                          </Button>
+                        )}
                         <Button
                           onClick={() => handleResetPassword(user.id)}
                           disabled={actionLoading === `reset-${user.id}`}
-                          variant="outline"
+                          variant="ghost"
                           size="xs"
-                          className="gap-1.5 hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-700"
+                          className="h-7 w-7 p-0 bg-blue-500/10 text-blue-600 dark:hover:text-blue-400"
                         >
                           {actionLoading === `reset-${user.id}` ? (
                             <FiLoader className="w-3 h-3 animate-spin" />
                           ) : (
                             <FiRefreshCw className="w-3 h-3" />
                           )}
-                          {t.admin.reset}
                         </Button>
                         <Button
                           onClick={() => handleDeleteUser(user.id)}
                           disabled={actionLoading === `delete-${user.id}`}
-                          variant="danger"
+                          variant="ghost"
                           size="xs"
-                          className="gap-1.5 hover:bg-red-600"
+                          className="h-7 w-7 p-0 bg-red-500/10 text-red-600 dark:hover:text-red-400"
                         >
                           {actionLoading === `delete-${user.id}` ? (
                             <FiLoader className="w-3 h-3 animate-spin" />
                           ) : (
                             <FiTrash2 className="w-3 h-3" />
                           )}
-                          {t.admin.delete}
                         </Button>
+                        
+
                       </div>
                     </td>
                   </tr>
@@ -703,6 +802,218 @@ export default function UsersPage() {
           </div>
         )}
       </Card>
+
+      {/* Teacher Quizzes Modal */}
+      {showQuizzesModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-card rounded-3xl shadow-2xl border border-border/50 w-full max-w-6xl max-h-[90vh] overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b border-border">
+              <div>
+                <h3 className="text-2xl font-bold bg-linear-to-r from-primary to-primary-dark bg-clip-text text-transparent">
+                  {selectedTeacher?.name}&apos;s Quizzes
+                </h3>
+                <p className="text-lg text-foreground/80 mt-1">
+                  {selectedTeacher?.email} • {teacherQuizzes.length} quizzes
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowQuizzesModal(false);
+                  setSelectedTeacher(null);
+                  setTeacherQuizzes([]);
+                }}
+                className="p-3 rounded-full hover:bg-muted/50 transition-colors"
+              >
+                <FiX className="w-6 h-6 text-foreground/70 hover:text-foreground" />
+              </button>
+            </div>
+
+            <div className="p-6 max-h-[calc(90vh-140px)] overflow-y-auto">
+              {quizzesLoading ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="relative">
+                    <div className="w-12 h-12 border-3 border-primary/10 rounded-full"></div>
+                    <div className="absolute top-0 left-0 w-12 h-12 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                  <p className="mt-4 text-sm text-muted-foreground">{t.admin.loadingUsers}</p>
+                </div>
+              ) : teacherQuizzes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="p-4 rounded-full bg-muted/50">
+                    <FiFileText className="w-12 h-12 text-muted-foreground" />
+                  </div>
+                <h4 className="text-lg font-semibold mt-4">{t.admin.noQuizzesFound}</h4>
+                  <p className="text-muted-foreground text-center mt-2">
+                    {t.admin.teacherNoQuizzes}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {teacherQuizzes.map((quiz) => (
+                    <Card key={quiz.id} className="p-6 hover:shadow-lg transition-all duration-300 border border-border/50">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex flex-col md:flex-row md:items-center gap-6 flex-1">
+                          <div className="shrink-0 w-16 h-16 bg-linear-to-br from-primary/20 to-primary-dark/20 rounded-xl flex items-center justify-center shadow-md">
+                            <FiFileText className="w-8 h-8 text-primary" />
+                          </div>
+
+                          <div className="flex-1 space-y-3">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <h4 className="text-xl font-semibold">{quiz.title}</h4>
+                              <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
+                                {quiz.questions.length} questions
+                              </span>
+                              {quiz.timeLimit && (
+                                <span className="px-3 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full text-sm font-medium">
+                                  {quiz.timeLimit} min
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-2">
+                                <FiCalendar className="w-4 h-4" />
+                                Created: {new Date(quiz.createdAt).toLocaleDateString()}
+                              </div>
+                              {quiz.submissionsCount > 0 && (
+                                <>
+                                  <div className="flex items-center gap-2">
+                                    <FiBarChart className="w-4 h-4" />
+                                    {quiz.submissionsCount} submissions
+                                  </div>
+                                  {quiz.averageScore && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-green-600 dark:text-green-400 font-medium">
+                                        Avg: {quiz.averageScore}%
+                                      </span>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <Button
+                            onClick={() => {
+                              setSelectedQuizForQuestions(quiz);
+                              setShowQuestionsModal(true);
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                          >
+                            <FiFileText className="w-4 h-4" />
+                            {t.admin.viewQuestions}
+                          </Button>
+                          <Button
+                            onClick={() => window.open(`/quiz/${quiz.slug || quiz.id}`, '_blank')}
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                          >
+                            <FiEye className="w-4 h-4" />
+                            {t.common.view}
+                          </Button>
+                          <Button
+                            onClick={() => router.push(`/quiz/${quiz.slug || quiz.id}/edit`)}
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                          >
+                            <FiEdit2 className="w-4 h-4" />
+                            {t.common.edit}
+                          </Button>
+                          <Button
+                            onClick={() => selectedTeacher && handleDeleteQuiz(quiz.id, selectedTeacher.id)}
+                            variant="danger"
+                            size="sm"
+                            className="gap-2"
+                          >
+                            <FiTrash2 className="w-4 h-4" />
+                            {t.admin.delete}
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Questions Modal */}
+      {showQuestionsModal && selectedQuizForQuestions && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-card rounded-3xl shadow-2xl border border-border/50 w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b border-border">
+              <div>
+                <h3 className="text-2xl font-bold bg-linear-to-r from-primary to-primary-dark bg-clip-text text-transparent">
+                  {selectedQuizForQuestions.title}
+                </h3>
+                <p className="text-lg text-foreground/80 mt-1">
+                  {t.admin.questionsCount.replace('{count}', selectedQuizForQuestions.questions.length.toString())}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowQuestionsModal(false);
+                  setSelectedQuizForQuestions(null);
+                }}
+                className="p-3 rounded-full hover:bg-muted/50 transition-colors"
+              >
+                <FiX className="w-6 h-6 text-foreground/70 hover:text-foreground" />
+              </button>
+            </div>
+
+            <div className="p-6 max-h-[calc(90vh-140px)] overflow-y-auto">
+              <div className="space-y-6">
+                {selectedQuizForQuestions.questions.map((question, index) => (
+                  <div key={index} className="bg-muted/30 rounded-lg p-6 border border-border/30">
+                    <div className="flex items-start gap-4">
+                      <span className="shrink-0 w-8 h-8 bg-primary/20 text-primary rounded-full flex items-center justify-center text-sm font-bold">
+                        {index + 1}
+                      </span>
+                      <div className="flex-1">
+                        <p className="font-medium text-foreground mb-4 text-lg">{question.questionText}</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {question.choices.map((choice, choiceIndex) => (
+                            <div
+                              key={choiceIndex}
+                              className={`p-3 rounded-lg border text-sm transition-all ${
+                                choiceIndex === question.correctAnswer
+                                  ? 'bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300 shadow-sm'
+                                  : 'bg-card border-border/50 text-foreground/70'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className={`font-bold text-sm px-2 py-1 rounded ${
+                                  choiceIndex === question.correctAnswer
+                                    ? 'bg-green-500 text-white'
+                                    : 'bg-muted text-muted-foreground'
+                                }`}>
+                                  {String.fromCharCode(65 + choiceIndex)}
+                                </span>
+                                <span className="flex-1">{choice}</span>
+                                {choiceIndex === question.correctAnswer && (
+                                  <span className="text-green-600 dark:text-green-400 text-lg">✓</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

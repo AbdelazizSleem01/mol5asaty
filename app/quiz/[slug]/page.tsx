@@ -6,7 +6,7 @@ import { useQuizStore } from '@/store/quizStore';
 import { useUIStore } from '@/store/uiStore';
 import { translations } from '@/lib/i18n';
 import { Quiz } from '@/types';
-import { Loader2, ArrowLeft, ArrowRight, Check } from 'lucide-react';
+import { Loader2, ArrowLeft, ArrowRight, Check, Shield, AlertTriangle } from 'lucide-react';
 import Image from 'next/image';
 
 export default function QuizPage() {
@@ -25,6 +25,8 @@ export default function QuizPage() {
   const [passwordError, setPasswordError] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [isTabBlurred, setIsTabBlurred] = useState(false);
+  const [cheatingWarnings, setCheatingWarnings] = useState(0);
 
   const { setCurrentQuiz, setStudentName: setStoreStudentName, setSubmittedQuiz, setQuizStartTime, setQuizEndTime, quizStartTime } = useQuizStore();
   const { language } = useUIStore();
@@ -84,6 +86,154 @@ export default function QuizPage() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!hasStarted) return;
+
+    const preventSelection = (e: Event) => {
+      e.preventDefault();
+      return false;
+    };
+
+    const preventContextMenu = (e: Event) => {
+      e.preventDefault();
+      setCheatingWarnings(prev => prev + 1);
+      return false;
+    };
+
+    const preventKeyboard = (e: KeyboardEvent) => {
+      // Prevent basic copy/paste operations
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'v' || e.key === 'a' || e.key === 'x' || e.key === 's')) {
+        e.preventDefault();
+        setCheatingWarnings(prev => prev + 1);
+        return false;
+      }
+
+      // Prevent developer tools access
+      if (e.key === 'F12' ||
+          (e.ctrlKey && e.shiftKey && e.key === 'I') ||
+          (e.ctrlKey && e.shiftKey && e.key === 'C') ||
+          (e.ctrlKey && e.shiftKey && e.key === 'J') ||
+          (e.ctrlKey && e.key === 'u') ||
+          (e.altKey && e.key === 'F12') ||
+          e.key === 'F1' && e.ctrlKey) {
+        e.preventDefault();
+        setCheatingWarnings(prev => prev + 1);
+        return false;
+      }
+
+      // Prevent additional developer shortcuts
+      if ((e.ctrlKey || e.metaKey) && e.key === 'F12') {
+        e.preventDefault();
+        setCheatingWarnings(prev => prev + 1);
+        return false;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsTabBlurred(true);
+        setCheatingWarnings(prev => prev + 1);
+      } else {
+        setIsTabBlurred(false);
+      }
+    };
+
+    const preventPrint = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        setCheatingWarnings(prev => prev + 1);
+        return false;
+      }
+    };
+
+    const preventTouch = (e: TouchEvent) => {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+        setCheatingWarnings(prev => prev + 1);
+        return false;
+      }
+    };
+
+    const preventGesture = (e: Event) => {
+      e.preventDefault();
+      setCheatingWarnings(prev => prev + 1);
+      return false;
+    };
+
+    document.addEventListener('selectstart', preventSelection);
+    document.addEventListener('contextmenu', preventContextMenu);
+    document.addEventListener('keydown', preventKeyboard);
+    document.addEventListener('keydown', preventPrint);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('touchstart', preventTouch, { passive: false });
+    document.addEventListener('gesturestart', preventGesture, { passive: false });
+    document.addEventListener('gesturechange', preventGesture, { passive: false });
+    document.addEventListener('gestureend', preventGesture, { passive: false });
+
+    const preventScreenshot = () => {
+      const canvas = document.createElement('canvas');
+      canvas.style.position = 'absolute';
+      canvas.style.top = '-9999px';
+      document.body.appendChild(canvas);
+
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+      }
+
+      setTimeout(() => {
+        document.body.removeChild(canvas);
+      }, 100);
+    };
+
+    const detectPrintScreen = (e: KeyboardEvent) => {
+      if (e.key === 'PrintScreen' || (e.ctrlKey && e.key === 'PrintScreen')) {
+        setCheatingWarnings(prev => prev + 1);
+        preventScreenshot();
+      }
+    };
+
+    document.addEventListener('keydown', detectPrintScreen);
+
+    const style = document.createElement('style');
+    style.textContent = `
+      * {
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+        user-select: none !important;
+        -webkit-touch-callout: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+      }
+
+      body {
+        -webkit-user-select: none !important;
+        user-select: none !important;
+      }
+
+      input, textarea, [contenteditable] {
+        -webkit-user-select: text !important;
+        user-select: text !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      document.removeEventListener('selectstart', preventSelection);
+      document.removeEventListener('contextmenu', preventContextMenu);
+      document.removeEventListener('keydown', preventKeyboard);
+      document.removeEventListener('keydown', preventPrint);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('touchstart', preventTouch);
+      document.removeEventListener('gesturestart', preventGesture);
+      document.removeEventListener('gesturechange', preventGesture);
+      document.removeEventListener('gestureend', preventGesture);
+      document.removeEventListener('keydown', detectPrintScreen);
+      document.head.removeChild(style);
+    };
+  }, [hasStarted]);
 
   const handleSubmit = useCallback(async () => {
     const endTime = new Date();
@@ -334,6 +484,31 @@ export default function QuizPage() {
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
+     
+      {/* Tab blur overlay */}
+      {isTabBlurred && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-red-500/90 text-white rounded-2xl p-8 max-w-md text-center shadow-2xl">
+            <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-white" />
+            <h3 className="text-2xl font-bold mb-2">
+              {language === 'ar' ? 'تم الكشف عن نشاط مشبوه!' : 'Suspicious Activity Detected!'}
+            </h3>
+            <p className="text-lg mb-4">
+              {language === 'ar'
+                ? 'تم التبديل خارج الصفحة. يرجى العودة للاختبار فوراً.'
+                : 'Switched away from the page. Please return to the quiz immediately.'
+              }
+            </p>
+            <button
+              onClick={() => setIsTabBlurred(false)}
+              className="bg-white text-red-600 px-6 py-3 rounded-xl font-semibold hover:bg-gray-100 transition-colors"
+            >
+              {language === 'ar' ? 'متابعة الاختبار' : 'Continue Quiz'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto">
         {/* Quiz Header Bar */}
         <div className="bg-card rounded-2xl shadow-lg border border-border/50 p-4 mb-6">

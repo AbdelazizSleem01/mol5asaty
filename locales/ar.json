@@ -272,6 +272,18 @@
     "clearFilters": "مسح المرشحات",
     "usersDisplayed": "مستخدم معروض",
     "reset": "إعادة تعيين",
-    "delete": "حذف"
+    "delete": "حذف",
+    "viewQuizzes": "عرض الاختبارات",
+    "viewQuestions": "عرض الأسئلة",
+    "hideQuestions": "إخفاء الأسئلة",
+    "questionsCount": "الأسئلة ({count})",
+    "noQuizzesFound": "لم يتم العثور على اختبارات",
+    "teacherNoQuizzes": "لم يقم هذا المعلم بإنشاء أي اختبارات بعد.",
+    "deleteQuiz": "حذف الاختبار",
+    "deleteQuizConfirm": "هل أنت متأكد من أنك تريد حذف هذا الاختبار؟ هذا الإجراء لا يمكن التراجع عنه.",
+    "quizDeleted": "تم حذف الاختبار بنجاح",
+    "copyUserId": "نسخ معرف المستخدم",
+    "copyEmail": "نسخ البريد الإلكتروني",
+    "sendEmail": "إرسال بريد إلكتروني"
   }
 }
