@@ -132,10 +132,13 @@ export default function QuizPage() {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
+        alert("⚠️ ممنوع تصوير الشاشة");
         setIsTabBlurred(true);
         setCheatingWarnings(prev => prev + 1);
+        document.body.classList.add("blur");
       } else {
         setIsTabBlurred(false);
+        document.body.classList.remove("blur");
       }
     };
 
@@ -211,6 +214,10 @@ export default function QuizPage() {
       body {
         -webkit-user-select: none !important;
         user-select: none !important;
+      }
+
+      .blur {
+        filter: blur(10px);
       }
 
       input, textarea, [contenteditable] {
